@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo vé - HelpDesk CRM</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <div w3-include-html="components/sidebar.html"></div>
+
+        <div class="main-content">
+            <!-- Header -->
+            <div w3-include-html="components/header.html"></div>
+
+            <!-- Content -->
+            <div class="content">
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="mb-0">Tạo vé mới</h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="createTicketForm" onsubmit="return validateForm('createTicketForm')">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="title" class="form-label">Tiêu đề</label>
+                                            <input type="text" class="form-control" id="title" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="customerName" class="form-label">Tên khách hàng</label>
+                                            <input type="text" class="form-control" id="customerName" required>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="email" class="form-label">Email</label>
+                                            <input type="email" class="form-control" id="email" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="phone" class="form-label">Số điện thoại</label>
+                                            <input type="tel" class="form-control" id="phone" required>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="category" class="form-label">Danh mục</label>
+                                            <select class="form-select" id="category" required>
+                                                <option value="">Chọn danh mục</option>
+                                                <option>Kỹ thuật</option>
+                                                <option>Tài khoản</option>
+                                                <option>Thanh toán</option>
+                                                <option>Cải tiến</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="priority" class="form-label">Mức độ ưu tiên</label>
+                                            <select class="form-select" id="priority" required>
+                                                <option value="">Chọn ưu tiên</option>
+                                                <option>Cao</option>
+                                                <option>Trung bình</option>
+                                                <option>Thấp</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="description" class="form-label">Mô tả</label>
+                                        <textarea class="form-control" id="description" rows="5" required></textarea>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary">Lưu</button>
+                                        <a href="tickets.html" class="btn btn-secondary">Hủy</a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="js/app.js"></script>
+    <!-- Include HTML components -->
+    <script src="https://www.w3schools.com/lib/w3.js"></script>
+    <script>w3.includeHTML();</script>
+</body>
+</html>
