@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l models/Ticket.php models/ActivityLog.php controllers/ticketController.php includes/functions.php)",
+      "Bash(\"c:/xampp/php/php.exe\" -l models/Ticket.php)",
+      "Bash(\"c:/xampp/php/php.exe\" -l models/ActivityLog.php)",
+      "Bash(\"c:/xampp/php/php.exe\" -l controllers/ticketController.php)",
+      "Bash(\"c:/xampp/php/php.exe\" -l includes/functions.php)",
+      "Bash(\"c:/xampp/php/php.exe\" -l dashboard.php)",
+      "Bash(\"c:/xampp/php/php.exe\" -l tickets.php)",
+      "Bash(\"c:/xampp/mysql/bin/mysql.exe\" -u root crmhelpdesk -e \"CREATE TABLE IF NOT EXISTS ticket_activity_log \\(id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, user_id INT, action_type ENUM\\(''create'',''update'',''note'',''status_change'',''assign''\\) NOT NULL, description VARCHAR\\(255\\) NOT NULL, old_value TEXT DEFAULT NULL, new_value TEXT DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY \\(ticket_id\\) REFERENCES tickets\\(id\\) ON DELETE CASCADE, FOREIGN KEY \\(user_id\\) REFERENCES users\\(id\\) ON DELETE SET NULL\\);\")",
+      "Bash(\"c:/xampp/mysql/bin/mysql.exe\" -u root crmhelpdesk -e \":*)",
+      "Bash(php -l warranty.php)",
+      "Bash(php -r \":*)"
+    ]
+  }
+}
