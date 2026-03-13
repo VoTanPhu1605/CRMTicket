@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mysql/bin/mysql.exe -u root -e \":*)",
+      "Bash(php -l c:/xampp/htdocs/CRMTicket/tickets.php)",
+      "Bash(php -l c:/xampp/htdocs/CRMTicket/controllers/ticketController.php)",
+      "Bash(php -l c:/xampp/htdocs/CRMTicket/controllers/userController.php)",
+      "Bash(php -l c:/xampp/htdocs/CRMTicket/api/ai.php)",
+      "Bash(php -l c:/xampp/htdocs/CRMTicket/includes/functions.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/CRMTicket/tickets.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/CRMTicket/controllers/ticketController.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/CRMTicket/api/ai.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/CRMTicket/users.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/CRMTicket/chat.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/CRMTicket/dashboard.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/CRMTicket/reports.php)",
+      "Bash(/c/xampp/php/php.exe -l c:/xampp/htdocs/CRMTicket/warranty.php)",
+      "Bash(./php/php.exe -r \":*)"
+    ]
+  }
+}
