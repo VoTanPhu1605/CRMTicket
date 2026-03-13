@@ -23,8 +23,13 @@ foreach ($files as $file) {
     $statements = array_filter(array_map('trim', explode(';', $sql)));
     $ok = 0; $fail = 0;
     foreach ($statements as $stmt) {
-        if (empty($stmt) || str_starts_with(ltrim($stmt), '--')) continue;
+        // Strip comment lines, keep actual SQL
+        $lines = explode("\n", $stmt);
+        $lines = array_filter($lines, fn($l) => !str_starts_with(trim($l), '--'));
+        $stmt = trim(implode("\n", $lines));
+        if (empty($stmt)) continue;
         try {
+            $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
             $pdo->exec($stmt);
             $ok++;
         } catch (PDOException $e) {
