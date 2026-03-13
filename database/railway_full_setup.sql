@@ -5,6 +5,8 @@
 
 -- CORE TABLES --
 
+SET FOREIGN_KEY_CHECKS=0;
+
 CREATE TABLE IF NOT EXISTS roles (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
@@ -33,11 +35,12 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Default users (password: password for all)
-INSERT IGNORE INTO users (username, password, fullname, email, phone, role_id, status) VALUES
-('admin',   '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', 'admin@crmhelpdesk.com',   '0123456789', 5, 'active'),
-('manager', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Manager',       'manager@crmhelpdesk.com', '0123456788', 2, 'active'),
-('agent',   '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Agent',         'agent@crmhelpdesk.com',   '0123456787', 3, 'active'),
-('viewer',  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Viewer',        'viewer@crmhelpdesk.com',  '0123456786', 4, 'active');
+DELETE FROM users WHERE username IN ('admin','manager','agent','viewer');
+INSERT INTO users (username, password, fullname, email, phone, role_id, status) VALUES
+('admin',   '$2y$10$62mge3TdsGN/DxDe0oAYB.VquDHY9e0jLO6BrTI6tZjLHLMBeJzum', 'Administrator', 'admin@crmhelpdesk.com',   '0123456789', 5, 'active'),
+('manager', '$2y$10$62mge3TdsGN/DxDe0oAYB.VquDHY9e0jLO6BrTI6tZjLHLMBeJzum', 'Manager',       'manager@crmhelpdesk.com', '0123456788', 2, 'active'),
+('agent',   '$2y$10$62mge3TdsGN/DxDe0oAYB.VquDHY9e0jLO6BrTI6tZjLHLMBeJzum', 'Agent',         'agent@crmhelpdesk.com',   '0123456787', 3, 'active'),
+('viewer',  '$2y$10$62mge3TdsGN/DxDe0oAYB.VquDHY9e0jLO6BrTI6tZjLHLMBeJzum', 'Viewer',        'viewer@crmhelpdesk.com',  '0123456786', 4, 'active');
 
 CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
