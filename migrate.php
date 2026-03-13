@@ -8,11 +8,7 @@ if ($secret !== 'run_migrate_2024') {
 require_once __DIR__ . '/config/database.php';
 
 $files = [
-    'database/crmhelpdesk.sql',
-    'database/migrations.sql',
-    'database/role_migration.sql',
-    'database/billing_migration.sql',
-    'database/chat_group_migration.sql',
+    'database/railway_full_setup.sql',
 ];
 
 $results = [];
