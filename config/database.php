@@ -1,13 +1,14 @@
 <?php
 // Database configuration for HelpDesk CRM
 
-$host = 'localhost'; // Database host
-$username = 'root'; // Database username
-$password = ''; // Database password
-$database = 'crmhelpdesk'; // Database name
+$host     = getenv('DB_HOST')     ?: 'localhost';
+$username = getenv('DB_USER')     ?: 'root';
+$password = getenv('DB_PASS')     ?: '';
+$database = getenv('DB_NAME')     ?: 'crmhelpdesk';
+$port     = getenv('DB_PORT')     ?: '3306';
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$database;charset=utf8", $username, $password);
+    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$database;charset=utf8", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
