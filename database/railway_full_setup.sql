@@ -44,9 +44,12 @@ INSERT INTO users (username, password, fullname, email, phone, role_id, status) 
 
 CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE
+    name VARCHAR(100) NOT NULL UNIQUE,
+    category_type ENUM('service','warranty','other') NOT NULL DEFAULT 'service',
+    warranty_months TINYINT UNSIGNED NOT NULL DEFAULT 0
 );
-INSERT IGNORE INTO categories (id, name) VALUES (1,'Kỹ thuật'),(2,'Tài khoản'),(3,'Thanh toán'),(4,'Cải tiến');
+INSERT IGNORE INTO categories (id, name, category_type, warranty_months) VALUES
+(1,'Kỹ thuật','service',0),(2,'Tài khoản','service',0),(3,'Thanh toán','service',0),(4,'Cải tiến','other',0);
 
 CREATE TABLE IF NOT EXISTS priorities (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -75,6 +78,8 @@ CREATE TABLE IF NOT EXISTS tickets (
     assigned_to INT,
     created_by INT NOT NULL,
     due_date DATE DEFAULT NULL,
+    warranty_end_date DATE DEFAULT NULL,
+    warranty_claim_id INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
