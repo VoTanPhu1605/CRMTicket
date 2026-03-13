@@ -1,5 +1,4 @@
 <?php
-ob_start();
 require_once 'includes/auth.php';
 require_once 'includes/functions.php';
 require_once 'models/Chat.php';
@@ -9,63 +8,6 @@ requireLogin();
 $me = getCurrentUser();
 $chat = new Chat();
 $userModel = new User();
-
-function chatJson($data) {
-    ob_end_clean();
-    header('Content-Type: application/json');
-    echo json_encode($data);
-    exit;
-}
-
-// ── AJAX handlers ──────────────────────────────────────────────────────────────
-$ajaxAction = $_GET['ajax'] ?? '';
-
-if ($ajaxAction === 'send') {
-    $roomId  = (int)($_POST['room_id'] ?? 0);
-    $message = trim($_POST['message'] ?? '');
-    $type    = in_array($_POST['type'] ?? 'text', ['text','sticker']) ? ($_POST['type'] ?? 'text') : 'text';
-    if (!$roomId || $message === '') chatJson(['ok' => false]);
-    $chat->sendMessage($roomId, $me['id'], $message, $type);
-    $chat->markRead($roomId, $me['id']);
-    chatJson(['ok' => true]);
-}
-
-if ($ajaxAction === 'poll') {
-    $roomId = (int)($_GET['room_id'] ?? 0);
-    $after  = (int)($_GET['after'] ?? 0);
-    if (!$roomId) chatJson([]);
-    $chat->markRead($roomId, $me['id']);
-    chatJson($chat->getMessages($roomId, $after));
-}
-
-if ($ajaxAction === 'open_direct') {
-    $otherId = (int)($_POST['user_id'] ?? 0);
-    if (!$otherId || $otherId === (int)$me['id']) chatJson(['ok' => false, 'message' => 'Invalid user']);
-    $roomId = $chat->getOrCreateDirectRoom((int)$me['id'], $otherId);
-    chatJson(['ok' => true, 'room_id' => $roomId]);
-}
-
-if ($ajaxAction === 'create_group') {
-    $name    = trim($_POST['name'] ?? '');
-    $members = $_POST['members'] ?? [];
-    if (empty($name)) chatJson(['ok' => false, 'message' => 'Vui lòng đặt tên nhóm.']);
-    if (count($members) < 1) chatJson(['ok' => false, 'message' => 'Chọn ít nhất 1 thành viên.']);
-    $memberIds = array_map('intval', (array)$members);
-    $memberIds[] = (int)$me['id'];
-    $roomId = $chat->createGroupRoom($name, $memberIds);
-    chatJson(['ok' => true, 'room_id' => $roomId, 'name' => $name, 'member_count' => count($memberIds)]);
-}
-
-if ($ajaxAction === 'unread_counts') {
-    global $pdo;
-    $stmt = $pdo->prepare("SELECT room_id FROM chat_members WHERE user_id = ?");
-    $stmt->execute([$me['id']]);
-    $rooms  = $stmt->fetchAll(\PDO::FETCH_COLUMN);
-    $counts = [];
-    foreach ($rooms as $r) $counts[$r] = $chat->countUnread($r, $me['id']);
-    $counts[1] = $chat->countUnread(1, $me['id']);
-    chatJson($counts);
-}
 
 // ── Page render ────────────────────────────────────────────────────────────────
 $contacts   = $chat->getContacts($me['id']);
@@ -420,7 +362,7 @@ document.addEventListener('click', e => {
 
 function sendSticker(emoji) {
     document.getElementById('stickerPicker').classList.remove('show');
-    fetch('chat.php?ajax=send', {
+    fetch('chat-api.php?ajax=send', {
         method: 'POST',
         body: new URLSearchParams({room_id: currentRoom, message: emoji, type: 'sticker'})
     }).then(() => poll());
@@ -490,7 +432,7 @@ function sendMsg() {
     if (!txt) return;
     inp.value = '';
     inp.style.height = '';
-    fetch('chat.php?ajax=send', {
+    fetch('chat-api.php?ajax=send', {
         method: 'POST',
         body: new URLSearchParams({room_id: currentRoom, message: txt, type: 'text'})
     }).then(() => poll());
@@ -504,7 +446,7 @@ function handleKey(e) {
 
 // ── Poll ──────────────────────────────────────────────────────────────────────
 function poll() {
-    fetch(`chat.php?ajax=poll&room_id=${currentRoom}&after=${lastMsgId}`)
+    fetch(`chat-api.php?ajax=poll&room_id=${currentRoom}&after=${lastMsgId}`)
         .then(r => r.text())
         .then(text => {
             let msgs; try { msgs = JSON.parse(text); } catch(e) { return; }
@@ -528,7 +470,7 @@ function startPoll() {
 
 // ── Unread badges ─────────────────────────────────────────────────────────────
 function refreshUnread() {
-    fetch('chat.php?ajax=unread_counts').then(r => r.json()).then(counts => {
+    fetch('chat-api.php?ajax=unread_counts').then(r => r.json()).then(counts => {
         for (const [rid, cnt] of Object.entries(counts)) {
             if (parseInt(rid) === currentRoom) continue;
             const el = document.getElementById('unread-' + rid);
@@ -556,7 +498,7 @@ function switchRoom(roomId, name, type, sub) {
         av.style.background = type === 'general' ? '#4f46e5' : '#7c3aed';
         av.style.borderRadius = '10px';
     }
-    fetch(`chat.php?ajax=poll&room_id=${roomId}&after=0`)
+    fetch(`chat-api.php?ajax=poll&room_id=${roomId}&after=0`)
         .then(r => r.text())
         .then(text => {
             let msgs; try { msgs = JSON.parse(text); } catch(e) { msgs = []; }
@@ -575,7 +517,7 @@ function switchRoom(roomId, name, type, sub) {
 
 // ── Open DM ───────────────────────────────────────────────────────────────────
 function openDM(userId, userName) {
-    fetch('chat.php?ajax=open_direct', {method:'POST', body: new URLSearchParams({user_id: userId})})
+    fetch('chat-api.php?ajax=open_direct', {method:'POST', body: new URLSearchParams({user_id: userId})})
     .then(r => r.text()).then(text => {
         let d; try { d = JSON.parse(text); } catch(e) { alert('Lỗi: ' + text.substring(0,200)); return; }
         if (!d.ok) { alert(d.message || 'Không thể mở chat.'); return; }
@@ -619,7 +561,7 @@ function createGroup() {
     const body = new URLSearchParams({name});
     members.forEach(m => body.append('members[]', m));
 
-    fetch('chat.php?ajax=create_group', {method:'POST', body})
+    fetch('chat-api.php?ajax=create_group', {method:'POST', body})
     .then(r => r.json()).then(d => {
         if (!d.ok) { errEl.textContent = d.message; errEl.classList.remove('d-none'); return; }
         bootstrap.Modal.getOrCreateInstance(document.getElementById('newGroupModal')).hide();
