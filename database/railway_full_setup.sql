@@ -200,6 +200,16 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- ALTER existing tables to add missing columns --
+
+ALTER TABLE categories
+    ADD COLUMN category_type ENUM('service','warranty','other') NOT NULL DEFAULT 'service',
+    ADD COLUMN warranty_months TINYINT UNSIGNED NOT NULL DEFAULT 0;
+
+ALTER TABLE tickets
+    ADD COLUMN warranty_end_date DATE DEFAULT NULL,
+    ADD COLUMN warranty_claim_id INT DEFAULT NULL;
+
 -- VERIFY --
 SELECT table_name, table_rows FROM information_schema.tables
 WHERE table_schema = DATABASE()
