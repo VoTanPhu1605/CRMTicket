@@ -354,21 +354,9 @@ include 'includes/header.php';
                                         </span>
                                     </td>
                                     <td>
-                                        <?php if (hasAnyRole(['Admin', 'Manager', 'IT Helpdesk', 'IT Support', 'IT Intern'])): ?>
-                                            <select class="form-select form-select-sm status-quick-select"
-                                                    data-ticket-id="<?php echo (int)$ticket['id']; ?>"
-                                                    style="min-width:110px;font-size:12px;padding:3px 8px;">
-                                                <?php foreach ($statuses as $st): ?>
-                                                    <option value="<?php echo (int)$st['id']; ?>" <?php echo $ticket['status_id'] == $st['id'] ? 'selected' : ''; ?>>
-                                                        <?php echo htmlspecialchars($st['name']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php else: ?>
-                                            <span class="badge bg-<?php echo getStatusColorClass($ticket['status_name']); ?>">
-                                                <?php echo htmlspecialchars($ticket['status_name']); ?>
-                                            </span>
-                                        <?php endif; ?>
+                                        <span class="badge bg-<?php echo getStatusColorClass($ticket['status_name']); ?>">
+                                            <?php echo htmlspecialchars($ticket['status_name']); ?>
+                                        </span>
                                     </td>
                                     <td><?php echo $ticket['assigned_name'] ? htmlspecialchars($ticket['assigned_name']) : '<span class="text-muted">Chưa phân công</span>'; ?></td>
                                     <td>
