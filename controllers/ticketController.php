@@ -126,17 +126,14 @@ class TicketController {
         if (isset($data['priority_id'])) $updateData['priority_id'] = $data['priority_id'];
         if (array_key_exists('due_date', $data)) $updateData['due_date'] = !empty($data['due_date']) ? $data['due_date'] : null;
 
+        // Block editing closed tickets
+        if ((int)$ticket['status_id'] === 3) {
+            return ['success' => false, 'message' => 'Ticket đã đóng, không thể chỉnh sửa.'];
+        }
+
         // Admin and Manager can change status and assignment
-        // IT Helpdesk can only change status, not reassign tickets
         if ($this->authController->hasAnyRole(['Admin', 'Manager'])) {
-            if (isset($data['status_id'])) {
-                $updateData['status_id'] = $data['status_id'];
-                // Auto-set warranty when ticket is closed (duration from category)
-                if ((int)$data['status_id'] === 3 && empty($ticket['warranty_end_date'])) {
-                    $we = $this->calcWarrantyEnd($ticket);
-                    if ($we) $updateData['warranty_end_date'] = $we;
-                }
-            }
+            // Handle assignment
             if (isset($data['assigned_to']) && !empty($data['assigned_to'])) {
                 $currentUserRole = $this->authController->getCurrentUser()['role_name'];
                 $targetUser = $this->userModel->findById($data['assigned_to']);
@@ -146,10 +143,29 @@ class TicketController {
             } elseif (isset($data['assigned_to']) && $data['assigned_to'] === '') {
                 $updateData['assigned_to'] = null;
             }
+
+            if (isset($data['status_id'])) {
+                $newStatusId = (int)$data['status_id'];
+                $currentStatusId = (int)$ticket['status_id'];
+                // Require assigned_to when moving out of Mở
+                if ($newStatusId > $currentStatusId && empty($updateData['assigned_to']) && empty($ticket['assigned_to'])) {
+                    return ['success' => false, 'message' => 'Vui lòng phân công nhân viên xử lý trước khi chuyển trạng thái.'];
+                }
+                $updateData['status_id'] = $newStatusId;
+                if ($newStatusId === 3 && empty($ticket['warranty_end_date'])) {
+                    $we = $this->calcWarrantyEnd($ticket);
+                    if ($we) $updateData['warranty_end_date'] = $we;
+                }
+            }
         } elseif ($this->authController->hasRole('IT Helpdesk')) {
             if (isset($data['status_id'])) {
-                $updateData['status_id'] = $data['status_id'];
-                if ((int)$data['status_id'] === 3 && empty($ticket['warranty_end_date'])) {
+                $newStatusId = (int)$data['status_id'];
+                $currentStatusId = (int)$ticket['status_id'];
+                if ($newStatusId > $currentStatusId && empty($ticket['assigned_to'])) {
+                    return ['success' => false, 'message' => 'Ticket chưa được phân công. Vui lòng liên hệ Manager để phân công trước.'];
+                }
+                $updateData['status_id'] = $newStatusId;
+                if ($newStatusId === 3 && empty($ticket['warranty_end_date'])) {
                     $we = $this->calcWarrantyEnd($ticket);
                     if ($we) $updateData['warranty_end_date'] = $we;
                 }

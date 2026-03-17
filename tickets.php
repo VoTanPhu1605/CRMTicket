@@ -135,15 +135,19 @@ switch ($action) {
 
         $pageTitle = 'Chi tiết Ticket #' . $ticket['id'];
         $canTransfer = hasAnyRole(['Admin', 'Manager']);
+        $isClosed = (int)$ticket['status_id'] === 3;
         $pageActions = '<div class="btn-group">
             <a href="tickets.php" class="btn btn-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Quay lại
             </a>
-            ' . ($canTransfer ? '<button type="button" class="btn btn-warning" onclick="openTransferModal()">
+            ' . ($canTransfer && !$isClosed ? '<button type="button" class="btn btn-warning" onclick="openTransferModal()">
                 <i class="bi bi-arrow-left-right me-1"></i>Chuyển giao
             </button>' : '') . '
-            ' . (hasAnyRole(['Admin', 'Manager', 'IT Helpdesk']) ? '<a href="tickets.php?action=edit&id=' . $ticket['id'] . '" class="btn btn-primary">
+            ' . (!$isClosed && hasAnyRole(['Admin', 'Manager', 'IT Helpdesk']) ? '<a href="tickets.php?action=edit&id=' . $ticket['id'] . '" class="btn btn-primary">
                 <i class="bi bi-pencil me-1"></i>Chỉnh sửa
+            </a>' : '') . '
+            ' . ($isClosed ? '<a href="warranty.php" class="btn btn-success">
+                <i class="bi bi-shield-check me-1"></i>Xem Bảo hành
             </a>' : '') . '
         </div>';
 
@@ -174,6 +178,11 @@ switch ($action) {
         $ticket = $ticketController->getTicket($id);
         if (!$ticket) {
             redirectWithMessage('tickets.php', 'error', 'Ticket không tồn tại.');
+        }
+
+        // Ticket đã đóng → không cho chỉnh sửa
+        if ((int)$ticket['status_id'] === 3) {
+            redirectWithMessage('tickets.php?action=view&id=' . $id, 'error', 'Ticket đã đóng, không thể chỉnh sửa.');
         }
 
         $pageTitle = 'Chỉnh sửa Ticket #' . $ticket['id'];
