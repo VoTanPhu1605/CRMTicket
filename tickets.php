@@ -476,6 +476,7 @@ include 'includes/header.php';
                             <div class="col-md-6 mb-3">
                                 <label for="due_date" class="form-label">Hạn xử lý</label>
                                 <input type="date" class="form-control" id="due_date" name="due_date"
+                                       min="<?php echo date('Y-m-d'); ?>"
                                        value="<?php echo $action === 'edit' ? htmlspecialchars($ticket['due_date'] ?? '') : (isset($_POST['due_date']) ? htmlspecialchars($_POST['due_date']) : ''); ?>">
                             </div>
                         </div>
@@ -484,14 +485,38 @@ include 'includes/header.php';
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label for="status_id" class="form-label">Trạng thái</label>
-                                    <select class="form-select" id="status_id" name="status_id">
-                                        <?php foreach ($statuses as $status): ?>
-                                            <option value="<?php echo $status['id']; ?>"
-                                                    <?php echo $ticket['status_id'] == $status['id'] ? 'selected' : ''; ?>>
-                                                <?php echo $status['name']; ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                    <?php
+                                    $currentStatusId = (int)$ticket['status_id'];
+                                    $allowedNext = [1 => 2, 2 => 3]; // Mở→Đang xử lý→Đã đóng
+                                    $isClosed = $currentStatusId === 3;
+                                    ?>
+                                    <?php if ($isClosed): ?>
+                                        <div class="form-control bg-light text-muted">
+                                            <i class="bi bi-lock me-1"></i>Đã đóng — không thể thay đổi
+                                        </div>
+                                        <input type="hidden" name="status_id" value="<?php echo $currentStatusId; ?>">
+                                    <?php else: ?>
+                                        <select class="form-select" id="status_id" name="status_id">
+                                            <?php foreach ($statuses as $status):
+                                                $sid = (int)$status['id'];
+                                                // Show current and allowed next only
+                                                if ($sid !== $currentStatusId && $sid !== ($allowedNext[$currentStatusId] ?? -1)) continue;
+                                            ?>
+                                                <option value="<?php echo $sid; ?>"
+                                                        <?php echo $sid === $currentStatusId ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($status['name']); ?>
+                                                    <?php echo $sid === $currentStatusId ? '(hiện tại)' : '→ chuyển sang'; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="form-text text-muted">
+                                            <?php if ($currentStatusId === 1): ?>
+                                                <i class="bi bi-arrow-right"></i> Tiếp theo: Đang xử lý
+                                            <?php elseif ($currentStatusId === 2): ?>
+                                                <i class="bi bi-arrow-right"></i> Tiếp theo: Đã đóng (sau khi đóng sẽ không thể thay đổi)
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 <?php
                                 $currentUserRole = getCurrentUser()['role_name'];

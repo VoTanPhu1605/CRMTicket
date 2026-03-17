@@ -51,6 +51,11 @@ class TicketController {
             return ['success' => false, 'message' => 'Vui lòng điền đầy đủ thông tin bắt buộc.'];
         }
 
+        // Validate due_date is not in the past
+        if (!empty($ticketData['due_date']) && $ticketData['due_date'] < date('Y-m-d')) {
+            return ['success' => false, 'message' => 'Hạn xử lý không thể là ngày trong quá khứ.'];
+        }
+
         // Validate email
         if (!filter_var($ticketData['customer_email'], FILTER_VALIDATE_EMAIL)) {
             return ['success' => false, 'message' => 'Email không hợp lệ.'];
@@ -270,9 +275,18 @@ class TicketController {
             $we = $this->calcWarrantyEnd($ticket);
             if ($we) $this->ticketModel->update((int)$ticketId, ['warranty_end_date' => $we]);
         }
+        $transitions = [1 => 'Đang xử lý', 2 => 'Đã đóng'];
+        $currentStatusId = (int)$ticket['status_id'];
+        if ($currentStatusId === 3) {
+            return ['success' => false, 'message' => 'Ticket đã đóng, không thể thay đổi trạng thái.'];
+        }
+        if (!isset($transitions[$currentStatusId]) || (int)$statusId !== ($currentStatusId + 1)) {
+            $nextName = $transitions[$currentStatusId] ?? '';
+            return ['success' => false, 'message' => "Chỉ có thể chuyển sang: $nextName."];
+        }
         if ($this->ticketModel->updateStatus((int)$ticketId, (int)$statusId)) {
             if ($this->activityLog->tableExists()) {
-                $this->activityLog->log($ticketId, $currentUser['id'], 'status_change', 'Thay đổi trạng thái nhanh', null, (string)$statusId);
+                $this->activityLog->log($ticketId, $currentUser['id'], 'status_change', 'Thay đổi trạng thái', null, (string)$statusId);
             }
             return ['success' => true, 'message' => 'Đã cập nhật trạng thái.'];
         }

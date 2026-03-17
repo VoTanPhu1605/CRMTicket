@@ -150,6 +150,19 @@ class Ticket {
         return $stmt->execute($values);
     }
 
+    public function updateStatus($id, $newStatusId) {
+        // Allowed transitions: 1(Mở)→2(Đang xử lý)→3(Đã đóng), no backwards
+        $allowed = [1 => [2], 2 => [3], 3 => []];
+        $stmt = $this->pdo->prepare("SELECT status_id FROM tickets WHERE id = ?");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) return false;
+        $current = (int)$row['status_id'];
+        if (!in_array((int)$newStatusId, $allowed[$current] ?? [])) return false;
+        $stmt = $this->pdo->prepare("UPDATE tickets SET status_id = ?, updated_at = NOW() WHERE id = ?");
+        return $stmt->execute([$newStatusId, $id]);
+    }
+
     public function delete($id) {
         $stmt = $this->pdo->prepare("DELETE FROM tickets WHERE id = ?");
         return $stmt->execute([$id]);
