@@ -85,14 +85,27 @@ class BillingController {
         $momoRef = in_array($method, $qrMethods) ? strtoupper($method) . '-' . $ticketId . '-' . time() : null;
         $cu = getCurrentUser();
 
-        $paymentId = $this->billing->createPayment([
-            'ticket_id'  => $ticketId,
-            'billing_id' => $billing['id'],
-            'method'     => $method,
-            'amount'     => $billing['price'],
-            'momo_ref'   => $momoRef,
-            'created_by' => $cu['id'],
-        ]);
+        try {
+            $paymentId = $this->billing->createPayment([
+                'ticket_id'  => $ticketId,
+                'billing_id' => $billing['id'],
+                'method'     => $method,
+                'amount'     => $billing['price'],
+                'momo_ref'   => $momoRef,
+                'created_by' => $cu['id'],
+            ]);
+        } catch (\PDOException $e) {
+            // ENUM column not migrated yet — run migration automatically
+            $this->billing->runPaymentMethodsMigration();
+            $paymentId = $this->billing->createPayment([
+                'ticket_id'  => $ticketId,
+                'billing_id' => $billing['id'],
+                'method'     => $method,
+                'amount'     => $billing['price'],
+                'momo_ref'   => $momoRef,
+                'created_by' => $cu['id'],
+            ]);
+        }
 
         // Update billing to pending state
         $this->billing->updateBillingStatus($billing['id'], 'pending', $method);

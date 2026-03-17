@@ -40,7 +40,16 @@ if ($action === 'initiate_payment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $ticketId      = (int)($_POST['ticket_id'] ?? 0);
     $allowedMethods = ['cash', 'momo', 'bank_transfer', 'visa', 'zalopay', 'vnpay'];
     $method        = in_array($_POST['method'] ?? '', $allowedMethods) ? $_POST['method'] : 'cash';
-    jsonOut($billingController->initiatePayment($ticketId, $method));
+    try {
+        jsonOut($billingController->initiatePayment($ticketId, $method));
+    } catch (Exception $e) {
+        // Likely ENUM column not migrated yet
+        if (strpos($e->getMessage(), 'ENUM') !== false || strpos($e->getMessage(), 'Data truncated') !== false || $e->getCode() == '22001' || $e->getCode() == 'HY000') {
+            jsonOut(['success' => false, 'message' => 'Cần chạy migration DB trước. Truy cập /migrate.php?key=run_migrate_2024']);
+        } else {
+            jsonOut(['success' => false, 'message' => 'Lỗi thanh toán: ' . $e->getMessage()]);
+        }
+    }
 }
 
 // AJAX: confirm payment

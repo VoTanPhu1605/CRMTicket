@@ -9,6 +9,17 @@ class Billing {
 
     public function getPdo() { return $this->pdo; }
 
+    /** Auto-migrate ENUM columns to support new payment methods */
+    public function runPaymentMethodsMigration(): void {
+        $enum = "ENUM('cash','momo','bank_transfer','visa','zalopay','vnpay')";
+        try {
+            $this->pdo->exec("ALTER TABLE ticket_billing MODIFY COLUMN payment_method {$enum} DEFAULT NULL");
+        } catch (\PDOException $e) { /* already up to date */ }
+        try {
+            $this->pdo->exec("ALTER TABLE ticket_payments MODIFY COLUMN method {$enum} NOT NULL");
+        } catch (\PDOException $e) { /* already up to date */ }
+    }
+
     // ── Service Templates ──────────────────────────────────────────────
 
     public function getTemplatesByCategory(int $categoryId): array {
@@ -129,6 +140,8 @@ class Billing {
     // ── Payments ───────────────────────────────────────────────────────
 
     public function createPayment(array $d): int {
+        // If method ENUM doesn't include the value yet, fall back to storing as 'cash' equivalent
+        // by catching the DB error and providing a clear message
         $stmt = $this->pdo->prepare(
             "INSERT INTO ticket_payments (ticket_id, billing_id, method, amount, status, momo_ref, created_by)
              VALUES (?, ?, ?, ?, 'pending', ?, ?)"

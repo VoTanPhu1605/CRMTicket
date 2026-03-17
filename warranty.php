@@ -9,10 +9,11 @@ $ticketModel = new Ticket();
 $filter = in_array($_GET['filter'] ?? '', ['active','expired','all']) ? ($_GET['filter'] ?? 'active') : 'active';
 $warranties = $ticketModel->getWarrantyList($filter);
 
-// Group by category_type
+// Group by category_type (normalize NULL/unknown → 'other')
 $grouped = [];
 foreach ($warranties as $w) {
-    $grouped[$w['category_type']][] = $w;
+    $type = in_array($w['category_type'], ['hardware','software','other']) ? $w['category_type'] : 'other';
+    $grouped[$type][] = $w;
 }
 $typeLabels = ['hardware' => 'Phần cứng', 'software' => 'Phần mềm', 'other' => 'Khác'];
 $typeColors = ['hardware' => 'primary', 'software' => 'success', 'other' => 'secondary'];
