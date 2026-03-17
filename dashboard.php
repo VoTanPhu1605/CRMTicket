@@ -190,10 +190,10 @@ include 'includes/header.php';
                     <a href="tickets.php?action=create" class="btn btn-primary">
                         <i class="bi bi-plus-circle me-2"></i>Tạo Ticket mới
                     </a>
-                    <a href="tickets.php?status=pending" class="btn btn-outline-warning">
+                    <a href="tickets.php?status=Đang+chờ" class="btn btn-outline-warning">
                         <i class="bi bi-clock me-2"></i>Xem Tickets đang chờ
                     </a>
-                    <a href="tickets.php?status=in_progress" class="btn btn-outline-info">
+                    <a href="tickets.php?status=Đang+xử+lý" class="btn btn-outline-info">
                         <i class="bi bi-gear me-2"></i>Xem Tickets đang xử lý
                     </a>
                     <?php if (hasAnyRole(['Admin', 'Manager', 'IT Helpdesk'])): ?>

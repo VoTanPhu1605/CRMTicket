@@ -66,7 +66,11 @@ if ($action === 'update_status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $ticketId = (int)($_POST['ticket_id'] ?? 0);
     $statusId = (int)($_POST['status_id'] ?? 0);
     if (!$ticketId || !$statusId) jsonOut(['success' => false, 'message' => 'Thiếu tham số.']);
-    jsonOut($ticketController->quickUpdateStatus($ticketId, $statusId));
+    try {
+        jsonOut($ticketController->quickUpdateStatus($ticketId, $statusId));
+    } catch (Exception $e) {
+        jsonOut(['success' => false, 'message' => 'Lỗi: ' . $e->getMessage()]);
+    }
 }
 
 // AJAX: create warranty claim ticket
@@ -462,7 +466,7 @@ include 'includes/header.php';
                                 <label for="customer_phone" class="form-label">Số điện thoại</label>
                                 <input type="tel" class="form-control" id="customer_phone" name="customer_phone"
                                        value="<?php echo $action === 'edit' ? htmlspecialchars($ticket['customer_phone'] ?? '') : (isset($_POST['customer_phone']) ? htmlspecialchars($_POST['customer_phone']) : ''); ?>"
-                                       pattern="^(0[3-9][0-9]{8}|[+]?[0-9\s\-]{7,15})$">
+                                       maxlength="10" pattern="^0[3-9][0-9]{8}$">
                                 <div class="invalid-feedback">Số điện thoại không hợp lệ.</div>
                             </div>
                             <div class="col-md-6 mb-3">

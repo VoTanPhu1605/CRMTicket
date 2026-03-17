@@ -155,7 +155,7 @@ class ReportController {
         $tickets = $this->ticketModel->getAll($filters);
 
         // Convert to CSV format
-        $csv = "ID,Tiêu đề,Khách hàng,Email,Điện thoại,Danh mục,Ưu tiên,Trạng thái,Phân công,Ngày tạo\n";
+        $csv = "\xEF\xBB\xBF" . "ID,Tiêu đề,Khách hàng,Email,Điện thoại,Danh mục,Ưu tiên,Trạng thái,Phân công,Ngày tạo\n";
 
         foreach ($tickets as $ticket) {
             $csv .= sprintf(
