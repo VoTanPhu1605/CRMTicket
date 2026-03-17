@@ -9,6 +9,7 @@ require_once __DIR__ . '/config/database.php';
 
 $files = [
     'database/railway_full_setup.sql',
+    'database/payment_methods_migration.sql',
 ];
 
 $results = [];

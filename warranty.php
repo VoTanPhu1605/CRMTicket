@@ -142,9 +142,10 @@ foreach ($typeOrder as $type):
             </thead>
             <tbody>
                 <?php foreach ($rows as $w):
-                    $daysLeft = (int)ceil((strtotime($w['warranty_end_date']) - strtotime('today')) / 86400);
-                    $isExpired = $daysLeft < 0;
-                    $rowClass = $isExpired ? 'table-light' : ($daysLeft <= 7 ? 'table-warning' : ($daysLeft <= 30 ? '' : ''));
+                    $hasWarranty = !empty($w['warranty_end_date']);
+                    $daysLeft = $hasWarranty ? (int)ceil((strtotime($w['warranty_end_date']) - strtotime('today')) / 86400) : null;
+                    $isExpired = $hasWarranty && $daysLeft < 0;
+                    $rowClass = !$hasWarranty ? '' : ($isExpired ? 'table-light' : ($daysLeft <= 7 ? 'table-warning' : ''));
                 ?>
                 <tr class="<?php echo $rowClass; ?>">
                     <td class="text-muted">#<?php echo $w['id']; ?></td>
@@ -165,13 +166,13 @@ foreach ($typeOrder as $type):
                         </span>
                     </td>
                     <td>
-                        <?php echo date('d/m/Y', strtotime($w['warranty_end_date'])); ?>
+                        <?php echo $hasWarranty ? date('d/m/Y', strtotime($w['warranty_end_date'])) : '<span class="text-muted">—</span>'; ?>
                     </td>
                     <td>
-                        <?php if ($isExpired): ?>
+                        <?php if (!$hasWarranty): ?>
+                            <span class="badge bg-secondary">Chưa có</span>
+                        <?php elseif ($isExpired): ?>
                             <span class="badge bg-danger">Hết hạn <?php echo abs($daysLeft); ?> ngày trước</span>
-                        <?php elseif ($daysLeft <= 7): ?>
-                            <span class="badge bg-warning text-dark">Còn <?php echo $daysLeft; ?> ngày</span>
                         <?php elseif ($daysLeft <= 30): ?>
                             <span class="badge bg-warning text-dark">Còn <?php echo $daysLeft; ?> ngày</span>
                         <?php else: ?>

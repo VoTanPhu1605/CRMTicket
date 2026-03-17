@@ -37,8 +37,9 @@ if ($action === 'set_billing' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // AJAX: initiate payment
 if ($action === 'initiate_payment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $ticketId = (int)($_POST['ticket_id'] ?? 0);
-    $method   = in_array($_POST['method'] ?? '', ['cash', 'momo']) ? $_POST['method'] : 'cash';
+    $ticketId      = (int)($_POST['ticket_id'] ?? 0);
+    $allowedMethods = ['cash', 'momo', 'bank_transfer', 'visa', 'zalopay', 'vnpay'];
+    $method        = in_array($_POST['method'] ?? '', $allowedMethods) ? $_POST['method'] : 'cash';
     jsonOut($billingController->initiatePayment($ticketId, $method));
 }
 
@@ -782,7 +783,17 @@ include 'includes/header.php';
                             <i class="bi bi-check-circle-fill text-success" style="font-size:28px;"></i>
                             <div class="fw-semibold mt-1"><?php echo number_format((int)$billing['price'], 0, ',', '.'); ?>đ</div>
                             <div class="text-muted small">
-                                <?php echo $billing['payment_method'] === 'momo' ? '<i class="bi bi-qr-code"></i> MoMo' : '<i class="bi bi-cash"></i> Tiền mặt'; ?>
+                                <?php
+                                $methodIcons = [
+                                    'cash' => '<i class="bi bi-cash"></i> Tiền mặt',
+                                    'momo' => '<i class="bi bi-qr-code"></i> MoMo',
+                                    'bank_transfer' => '<i class="bi bi-bank"></i> Chuyển khoản',
+                                    'visa' => '<i class="bi bi-credit-card"></i> Visa/Mastercard',
+                                    'zalopay' => '<i class="bi bi-wallet2"></i> ZaloPay',
+                                    'vnpay' => '<i class="bi bi-phone"></i> VNPay',
+                                ];
+                                echo $methodIcons[$billing['payment_method']] ?? '<i class="bi bi-dash"></i> —';
+                                ?>
                             </div>
                         </div>
 
@@ -805,12 +816,25 @@ include 'includes/header.php';
                             <?php endif; ?>
                         </div>
                         <?php if (hasAnyRole(['Admin', 'Manager', 'IT Helpdesk'])): ?>
+                        <p class="text-muted small mb-2">Chọn phương thức thanh toán:</p>
                         <div class="d-grid gap-2">
                             <button class="btn btn-success btn-sm" onclick="payByCash(<?php echo $ticket['id']; ?>)">
-                                <i class="bi bi-cash me-1"></i>Thanh toán tiền mặt
+                                <i class="bi bi-cash me-1"></i>Tiền mặt
                             </button>
                             <button class="btn btn-sm" style="background:#ae2070;color:#fff;border:none;" onclick="payByMomo(<?php echo $ticket['id']; ?>, <?php echo (int)$billing['price']; ?>)">
-                                <i class="bi bi-qr-code me-1"></i>Thanh toán MoMo
+                                <i class="bi bi-qr-code me-1"></i>MoMo
+                            </button>
+                            <button class="btn btn-sm" style="background:#005bab;color:#fff;border:none;" onclick="payByBank(<?php echo $ticket['id']; ?>, <?php echo (int)$billing['price']; ?>)">
+                                <i class="bi bi-bank me-1"></i>Chuyển khoản ngân hàng
+                            </button>
+                            <button class="btn btn-sm" style="background:#1a1f71;color:#fff;border:none;" onclick="payByVisa(<?php echo $ticket['id']; ?>, <?php echo (int)$billing['price']; ?>)">
+                                <i class="bi bi-credit-card me-1"></i>Visa / Mastercard
+                            </button>
+                            <button class="btn btn-sm" style="background:#006daf;color:#fff;border:none;" onclick="payByZaloPay(<?php echo $ticket['id']; ?>, <?php echo (int)$billing['price']; ?>)">
+                                <i class="bi bi-wallet2 me-1"></i>ZaloPay
+                            </button>
+                            <button class="btn btn-sm" style="background:#e41c23;color:#fff;border:none;" onclick="payByVNPay(<?php echo $ticket['id']; ?>, <?php echo (int)$billing['price']; ?>)">
+                                <i class="bi bi-phone me-1"></i>VNPay
                             </button>
                             <?php if (hasAnyRole(['Admin', 'Manager'])): ?>
                             <button class="btn btn-outline-secondary btn-sm" onclick="waiveBilling(<?php echo $billing['id']; ?>)">
@@ -831,7 +855,10 @@ include 'includes/header.php';
                         <div class="d-flex justify-content-between align-items-center py-1" style="font-size:12px;">
                             <span>
                                 <span class="badge bg-<?php echo $pColors[$p['status']] ?? 'secondary'; ?>"><?php echo $pLabels[$p['status']] ?? $p['status']; ?></span>
-                                <?php echo $p['method'] === 'momo' ? 'MoMo' : 'Tiền mặt'; ?>
+                                <?php
+                                $pMethodLabels = ['cash'=>'Tiền mặt','momo'=>'MoMo','bank_transfer'=>'Chuyển khoản','visa'=>'Visa/MC','zalopay'=>'ZaloPay','vnpay'=>'VNPay'];
+                                echo $pMethodLabels[$p['method']] ?? htmlspecialchars($p['method']);
+                                ?>
                             </span>
                             <span class="fw-semibold"><?php echo number_format((int)$p['amount'], 0, ',', '.'); ?>đ</span>
                         </div>
@@ -1069,6 +1096,151 @@ function submitTransfer(ticketId) {
     </div>
 </div>
 
+<!-- Bank Transfer Payment Modal -->
+<div class="modal fade" id="bankModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#005bab;color:#fff;">
+                <h5 class="modal-title"><i class="bi bi-bank me-2"></i>Chuyển khoản ngân hàng</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <img id="bankQRImg" src="" alt="Bank QR"
+                         style="width:200px;height:200px;border:3px solid #005bab;border-radius:12px;">
+                </div>
+                <div class="card bg-light mb-0">
+                    <div class="card-body py-2">
+                        <div class="row g-1" style="font-size:14px;">
+                            <div class="col-5 text-muted">Ngân hàng:</div><div class="col-7 fw-semibold">VietcomBank (VCB)</div>
+                            <div class="col-5 text-muted">Số tài khoản:</div><div class="col-7 fw-semibold"><code>1234567890</code></div>
+                            <div class="col-5 text-muted">Chủ tài khoản:</div><div class="col-7 fw-semibold">CONG TY HELPDESK</div>
+                            <div class="col-5 text-muted">Số tiền:</div><div class="col-7 fw-bold text-primary fs-5" id="bankAmount"></div>
+                            <div class="col-5 text-muted">Nội dung CK:</div><div class="col-7"><code id="bankRef"></code></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0 small">
+                    <i class="bi bi-info-circle me-1"></i>Nhập đúng nội dung chuyển khoản để tự động đối chiếu. Sau khi nhận tiền, nhấn xác nhận.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="cancelQRPayment('bankModal')">Hủy giao dịch</button>
+                <button type="button" class="btn btn-success" onclick="confirmQRPayment('bankModal')">
+                    <i class="bi bi-check-circle me-1"></i>Xác nhận đã nhận tiền
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Visa/Mastercard Payment Modal -->
+<div class="modal fade" id="visaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#1a1f71;color:#fff;">
+                <h5 class="modal-title"><i class="bi bi-credit-card me-2"></i>Thanh toán Visa / Mastercard</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-secondary small mb-3">
+                    <i class="bi bi-shield-lock me-1"></i>Kết nối bảo mật SSL — Demo thanh toán thẻ quốc tế
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Số thẻ</label>
+                    <input type="text" class="form-control" id="visaCardNumber" placeholder="1234 5678 9012 3456" maxlength="19"
+                           oninput="this.value=this.value.replace(/[^0-9]/g,'').replace(/(.{4})/g,'$1 ').trim()">
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label fw-semibold">Ngày hết hạn</label>
+                        <input type="text" class="form-control" id="visaExpiry" placeholder="MM/YY" maxlength="5"
+                               oninput="this.value=this.value.replace(/[^0-9/]/g,'')">
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label fw-semibold">CVV</label>
+                        <input type="password" class="form-control" id="visaCVV" placeholder="•••" maxlength="4">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Tên chủ thẻ</label>
+                    <input type="text" class="form-control" id="visaName" placeholder="NGUYEN VAN A">
+                </div>
+                <div class="d-flex justify-content-between align-items-center bg-light rounded p-2">
+                    <span class="text-muted small">Số tiền thanh toán:</span>
+                    <span class="fw-bold fs-5 text-primary" id="visaAmount"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="cancelQRPayment('visaModal')">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="confirmVisaPayment()">
+                    <i class="bi bi-lock me-1"></i>Xác nhận thanh toán
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ZaloPay Modal -->
+<div class="modal fade" id="zalopayModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#006daf;color:#fff;">
+                <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Thanh toán ZaloPay</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="text-muted mb-3 small">Quét mã QR bằng ứng dụng ZaloPay</p>
+                <img id="zalopayQRImg" src="" alt="ZaloPay QR"
+                     style="width:220px;height:220px;border:3px solid #006daf;border-radius:12px;">
+                <div class="mt-3">
+                    <div class="fw-bold" style="font-size:22px;color:#006daf;" id="zalopayAmount"></div>
+                    <div class="text-muted small mt-1">Mã GD: <code id="zalopayRef"></code></div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0 text-start small">
+                    <i class="bi bi-info-circle me-1"></i>Sau khi khách quét và thanh toán xong, nhấn xác nhận.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="cancelQRPayment('zalopayModal')">Hủy giao dịch</button>
+                <button type="button" class="btn btn-success" onclick="confirmQRPayment('zalopayModal')">
+                    <i class="bi bi-check-circle me-1"></i>Xác nhận đã nhận tiền
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- VNPay Modal -->
+<div class="modal fade" id="vnpayModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#e41c23;color:#fff;">
+                <h5 class="modal-title"><i class="bi bi-phone me-2"></i>Thanh toán VNPay</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="text-muted mb-3 small">Quét mã QR bằng ứng dụng VNPay hoặc ứng dụng ngân hàng hỗ trợ VNPay QR</p>
+                <img id="vnpayQRImg" src="" alt="VNPay QR"
+                     style="width:220px;height:220px;border:3px solid #e41c23;border-radius:12px;">
+                <div class="mt-3">
+                    <div class="fw-bold" style="font-size:22px;color:#e41c23;" id="vnpayAmount"></div>
+                    <div class="text-muted small mt-1">Mã GD: <code id="vnpayRef"></code></div>
+                </div>
+                <div class="alert alert-warning mt-3 mb-0 text-start small">
+                    <i class="bi bi-info-circle me-1"></i>Sau khi khách quét và thanh toán xong, nhấn xác nhận.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="cancelQRPayment('vnpayModal')">Hủy giao dịch</button>
+                <button type="button" class="btn btn-success" onclick="confirmQRPayment('vnpayModal')">
+                    <i class="bi bi-check-circle me-1"></i>Xác nhận đã nhận tiền
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 var _currentPaymentId = null;
 
@@ -1172,6 +1344,104 @@ function cancelMomoPayment() {
         _currentPaymentId = null;
         bootstrap.Modal.getInstance(document.getElementById('momoModal'))?.hide();
     });
+}
+
+function _makeQRUrl(text) {
+    return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(text);
+}
+
+function _showQRModal(modalId, imgId, amountId, refId, method, ticketId, amount) {
+    fetch('tickets.php?action=initiate_payment', {
+        method: 'POST',
+        body: new URLSearchParams({ ticket_id: ticketId, method: method })
+    }).then(r => r.json()).then(function(d) {
+        if (!d.success) { alert(d.message); return; }
+        _currentPaymentId = d.payment_id;
+        var ref = method.toUpperCase() + '-' + ticketId + '-' + Date.now().toString().slice(-6);
+        document.getElementById(imgId).src = _makeQRUrl('HelpDesk-' + method + '-' + ticketId + '-' + amount + 'VND-' + ref);
+        document.getElementById(amountId).textContent = Number(amount).toLocaleString('vi-VN') + 'đ';
+        if (document.getElementById(refId)) document.getElementById(refId).textContent = ref;
+        new bootstrap.Modal(document.getElementById(modalId)).show();
+    }).catch(function(e) { alert('Lỗi: ' + e.message); });
+}
+
+function payByBank(ticketId, amount) {
+    fetch('tickets.php?action=initiate_payment', {
+        method: 'POST',
+        body: new URLSearchParams({ ticket_id: ticketId, method: 'bank_transfer' })
+    }).then(r => r.json()).then(function(d) {
+        if (!d.success) { alert(d.message); return; }
+        _currentPaymentId = d.payment_id;
+        var ref = 'CK' + ticketId + Date.now().toString().slice(-6);
+        var qrText = 'VietcomBank|1234567890|CONG TY HELPDESK|' + amount + '|' + ref;
+        document.getElementById('bankQRImg').src = _makeQRUrl(qrText);
+        document.getElementById('bankAmount').textContent = Number(amount).toLocaleString('vi-VN') + 'đ';
+        document.getElementById('bankRef').textContent = ref;
+        new bootstrap.Modal(document.getElementById('bankModal')).show();
+    }).catch(function(e) { alert('Lỗi: ' + e.message); });
+}
+
+function payByVisa(ticketId, amount) {
+    fetch('tickets.php?action=initiate_payment', {
+        method: 'POST',
+        body: new URLSearchParams({ ticket_id: ticketId, method: 'visa' })
+    }).then(r => r.json()).then(function(d) {
+        if (!d.success) { alert(d.message); return; }
+        _currentPaymentId = d.payment_id;
+        document.getElementById('visaAmount').textContent = Number(amount).toLocaleString('vi-VN') + 'đ';
+        document.getElementById('visaCardNumber').value = '';
+        document.getElementById('visaExpiry').value = '';
+        document.getElementById('visaCVV').value = '';
+        document.getElementById('visaName').value = '';
+        new bootstrap.Modal(document.getElementById('visaModal')).show();
+    }).catch(function(e) { alert('Lỗi: ' + e.message); });
+}
+
+function confirmVisaPayment() {
+    if (!document.getElementById('visaCardNumber').value.replace(/\s/g,'').match(/^\d{16}$/)) {
+        alert('Số thẻ không hợp lệ (cần 16 chữ số).'); return;
+    }
+    if (!document.getElementById('visaExpiry').value.match(/^\d{2}\/\d{2}$/)) {
+        alert('Ngày hết hạn không hợp lệ (MM/YY).'); return;
+    }
+    if (!document.getElementById('visaCVV').value.match(/^\d{3,4}$/)) {
+        alert('CVV không hợp lệ.'); return;
+    }
+    confirmQRPayment('visaModal');
+}
+
+function payByZaloPay(ticketId, amount) {
+    _showQRModal('zalopayModal', 'zalopayQRImg', 'zalopayAmount', 'zalopayRef', 'zalopay', ticketId, amount);
+}
+
+function payByVNPay(ticketId, amount) {
+    _showQRModal('vnpayModal', 'vnpayQRImg', 'vnpayAmount', 'vnpayRef', 'vnpay', ticketId, amount);
+}
+
+function confirmQRPayment(modalId) {
+    if (!_currentPaymentId) return;
+    fetch('tickets.php?action=confirm_payment', {
+        method: 'POST',
+        body: new URLSearchParams({ payment_id: _currentPaymentId })
+    }).then(r => r.json()).then(function(d) {
+        bootstrap.Modal.getInstance(document.getElementById(modalId))?.hide();
+        if (d.success) location.reload();
+        else alert(d.message);
+    });
+}
+
+function cancelQRPayment(modalId) {
+    if (_currentPaymentId) {
+        fetch('tickets.php?action=cancel_payment', {
+            method: 'POST',
+            body: new URLSearchParams({ payment_id: _currentPaymentId })
+        }).then(r => r.json()).then(function() {
+            _currentPaymentId = null;
+            bootstrap.Modal.getInstance(document.getElementById(modalId))?.hide();
+        });
+    } else {
+        bootstrap.Modal.getInstance(document.getElementById(modalId))?.hide();
+    }
 }
 
 function waiveBilling(billingId) {

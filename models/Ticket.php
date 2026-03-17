@@ -199,7 +199,8 @@ class Ticket {
         } elseif ($filter === 'expired') {
             $where = "t.warranty_end_date IS NOT NULL AND t.warranty_end_date < CURDATE()";
         } else {
-            $where = "t.warranty_end_date IS NOT NULL";
+            // 'all': all closed tickets (with or without warranty_end_date)
+            $where = "s.id = 3";
         }
         $stmt = $this->pdo->query("
             SELECT t.id, t.title, t.customer_name, t.customer_email, t.customer_phone,

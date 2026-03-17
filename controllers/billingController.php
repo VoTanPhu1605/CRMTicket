@@ -81,7 +81,8 @@ class BillingController {
         $pending = $this->billing->getPendingPaymentByTicket($ticketId);
         if ($pending) $this->billing->cancelPayment($pending['id']);
 
-        $momoRef = $method === 'momo' ? 'MOMO-' . $ticketId . '-' . time() : null;
+        $qrMethods = ['momo', 'zalopay', 'vnpay', 'bank_transfer'];
+        $momoRef = in_array($method, $qrMethods) ? strtoupper($method) . '-' . $ticketId . '-' . time() : null;
         $cu = getCurrentUser();
 
         $paymentId = $this->billing->createPayment([

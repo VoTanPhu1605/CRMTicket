@@ -131,13 +131,17 @@ include 'includes/header.php';
                                 <td><?php echo htmlspecialchars($b['template_name'] ?? 'Tự nhập'); ?></td>
                                 <td class="fw-semibold"><?php echo number_format((int)$b['price'], 0, ',', '.'); ?>đ</td>
                                 <td>
-                                    <?php if ($b['payment_method'] === 'momo'): ?>
-                                        <span style="color:#ae2070;font-weight:600;"><i class="bi bi-qr-code me-1"></i>MoMo</span>
-                                    <?php elseif ($b['payment_method'] === 'cash'): ?>
-                                        <span class="text-success fw-semibold"><i class="bi bi-cash me-1"></i>Tiền mặt</span>
-                                    <?php else: ?>
-                                        <span class="text-muted">—</span>
-                                    <?php endif; ?>
+                                    <?php
+                                    $methodDisplay = [
+                                        'cash'          => '<span class="text-success fw-semibold"><i class="bi bi-cash me-1"></i>Tiền mặt</span>',
+                                        'momo'          => '<span style="color:#ae2070;font-weight:600;"><i class="bi bi-qr-code me-1"></i>MoMo</span>',
+                                        'bank_transfer' => '<span style="color:#005bab;font-weight:600;"><i class="bi bi-bank me-1"></i>Chuyển khoản</span>',
+                                        'visa'          => '<span style="color:#1a1f71;font-weight:600;"><i class="bi bi-credit-card me-1"></i>Visa/MC</span>',
+                                        'zalopay'       => '<span style="color:#006daf;font-weight:600;"><i class="bi bi-wallet2 me-1"></i>ZaloPay</span>',
+                                        'vnpay'         => '<span style="color:#e41c23;font-weight:600;"><i class="bi bi-phone me-1"></i>VNPay</span>',
+                                    ];
+                                    echo $methodDisplay[$b['payment_method']] ?? '<span class="text-muted">—</span>';
+                                    ?>
                                 </td>
                                 <td><span class="badge bg-<?php echo $sc; ?>"><?php echo $sl; ?></span></td>
                                 <td class="text-muted" style="font-size:12px;"><?php echo date('d/m/Y H:i', strtotime($b['updated_at'])); ?></td>

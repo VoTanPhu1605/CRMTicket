@@ -3,6 +3,7 @@ require_once __DIR__ . '/../models/Ticket.php';
 require_once __DIR__ . '/../models/Note.php';
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../models/ActivityLog.php';
+require_once __DIR__ . '/../models/Billing.php';
 require_once __DIR__ . '/authController.php';
 require_once __DIR__ . '/../includes/functions.php';
 
@@ -12,6 +13,7 @@ class TicketController {
     private $authController;
     private $userModel;
     private $activityLog;
+    private $billingModel;
 
     public function __construct() {
         $this->ticketModel = new Ticket();
@@ -19,12 +21,13 @@ class TicketController {
         $this->authController = new AuthController();
         $this->userModel = new User();
         $this->activityLog = new ActivityLog();
+        $this->billingModel = new Billing();
     }
 
-    /** Returns warranty end date string for a ticket based on its category, or null if no warranty. */
+    /** Returns warranty end date string for a ticket based on its category (defaults to 12 months). */
     private function calcWarrantyEnd($ticket) {
         $months = $this->ticketModel->getCategoryWarrantyMonths((int)($ticket['category_id'] ?? 0));
-        if ($months <= 0) return null;
+        if ($months <= 0) $months = 12;
         return date('Y-m-d', strtotime("+{$months} months"));
     }
 
@@ -151,10 +154,18 @@ class TicketController {
                 if ($newStatusId > $currentStatusId && empty($updateData['assigned_to']) && empty($ticket['assigned_to'])) {
                     return ['success' => false, 'message' => 'Vui lòng phân công nhân viên xử lý trước khi chuyển trạng thái.'];
                 }
+                // Payment gate: must pay before closing
+                if ($newStatusId === 3) {
+                    $billing = $this->billingModel->getBillingByTicket((int)$id);
+                    if ($billing && (int)$billing['price'] > 0 && !in_array($billing['payment_status'], ['paid', 'waived'])) {
+                        return ['success' => false, 'message' => 'Vui lòng hoàn thành thanh toán trước khi đóng ticket.'];
+                    }
+                }
                 $updateData['status_id'] = $newStatusId;
-                if ($newStatusId === 3 && empty($ticket['warranty_end_date'])) {
-                    $we = $this->calcWarrantyEnd($ticket);
-                    if ($we) $updateData['warranty_end_date'] = $we;
+                if ($newStatusId === 3) {
+                    if (empty($ticket['warranty_end_date'])) {
+                        $updateData['warranty_end_date'] = $this->calcWarrantyEnd($ticket);
+                    }
                 }
             }
         } elseif ($this->authController->hasRole('IT Helpdesk')) {
@@ -164,10 +175,18 @@ class TicketController {
                 if ($newStatusId > $currentStatusId && empty($ticket['assigned_to'])) {
                     return ['success' => false, 'message' => 'Ticket chưa được phân công. Vui lòng liên hệ Manager để phân công trước.'];
                 }
+                // Payment gate: must pay before closing
+                if ($newStatusId === 3) {
+                    $billing = $this->billingModel->getBillingByTicket((int)$id);
+                    if ($billing && (int)$billing['price'] > 0 && !in_array($billing['payment_status'], ['paid', 'waived'])) {
+                        return ['success' => false, 'message' => 'Vui lòng hoàn thành thanh toán trước khi đóng ticket.'];
+                    }
+                }
                 $updateData['status_id'] = $newStatusId;
-                if ($newStatusId === 3 && empty($ticket['warranty_end_date'])) {
-                    $we = $this->calcWarrantyEnd($ticket);
-                    if ($we) $updateData['warranty_end_date'] = $we;
+                if ($newStatusId === 3) {
+                    if (empty($ticket['warranty_end_date'])) {
+                        $updateData['warranty_end_date'] = $this->calcWarrantyEnd($ticket);
+                    }
                 }
             }
         }
@@ -286,11 +305,6 @@ class TicketController {
             return ['success' => false, 'message' => 'Không có quyền.'];
         }
 
-        // Auto-set warranty when closing ticket
-        if ((int)$statusId === 3 && empty($ticket['warranty_end_date'])) {
-            $we = $this->calcWarrantyEnd($ticket);
-            if ($we) $this->ticketModel->update((int)$ticketId, ['warranty_end_date' => $we]);
-        }
         $transitions = [1 => 'Đang xử lý', 2 => 'Đã đóng'];
         $currentStatusId = (int)$ticket['status_id'];
         if ($currentStatusId === 3) {
@@ -299,6 +313,17 @@ class TicketController {
         if (!isset($transitions[$currentStatusId]) || (int)$statusId !== ($currentStatusId + 1)) {
             $nextName = $transitions[$currentStatusId] ?? '';
             return ['success' => false, 'message' => "Chỉ có thể chuyển sang: $nextName."];
+        }
+        // Payment gate: must pay before closing
+        if ((int)$statusId === 3) {
+            $billing = $this->billingModel->getBillingByTicket((int)$ticketId);
+            if ($billing && (int)$billing['price'] > 0 && !in_array($billing['payment_status'], ['paid', 'waived'])) {
+                return ['success' => false, 'message' => 'Vui lòng hoàn thành thanh toán trước khi đóng ticket.'];
+            }
+        }
+        // Auto-set warranty when closing ticket
+        if ((int)$statusId === 3 && empty($ticket['warranty_end_date'])) {
+            $this->ticketModel->update((int)$ticketId, ['warranty_end_date' => $this->calcWarrantyEnd($ticket)]);
         }
         if ($this->ticketModel->updateStatus((int)$ticketId, (int)$statusId)) {
             if ($this->activityLog->tableExists()) {
