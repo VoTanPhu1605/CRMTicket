@@ -194,12 +194,20 @@ class Ticket {
     }
 
     public function getWarrantyList($filter = 'active') {
+        // Auto-fix: set warranty_end_date for old closed tickets that don't have it yet
+        $this->pdo->exec("
+            UPDATE tickets t
+            JOIN categories c ON c.id = t.category_id
+            JOIN statuses s ON s.id = t.status_id
+            SET t.warranty_end_date = DATE_ADD(t.updated_at, INTERVAL GREATEST(COALESCE(c.warranty_months,0),12) MONTH)
+            WHERE s.id = 3 AND t.warranty_end_date IS NULL
+        ");
+
         if ($filter === 'active') {
-            $where = "t.warranty_end_date IS NOT NULL AND t.warranty_end_date >= CURDATE()";
+            $where = "s.id = 3 AND t.warranty_end_date >= CURDATE()";
         } elseif ($filter === 'expired') {
-            $where = "t.warranty_end_date IS NOT NULL AND t.warranty_end_date < CURDATE()";
+            $where = "s.id = 3 AND t.warranty_end_date < CURDATE()";
         } else {
-            // 'all': all closed tickets (with or without warranty_end_date)
             $where = "s.id = 3";
         }
         $stmt = $this->pdo->query("
