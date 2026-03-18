@@ -18,3 +18,7 @@ SELECT 'ticket_billing columns' AS info;
 DESCRIBE ticket_billing;
 SELECT 'ticket_payments columns' AS info;
 DESCRIBE ticket_payments;
+
+-- Fix chat_messages charset to support emoji (utf8mb4)
+ALTER TABLE chat_messages CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE chat_messages MODIFY COLUMN message TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;

@@ -328,7 +328,10 @@ function roleColor($role) {
 let currentRoom = <?php echo $activeRoomId; ?>;
 let lastMsgId   = <?php echo $lastId; ?>;
 let pollTimer   = null;
+let polling     = false;
+let lastSenderId = null, lastPollDate = null;
 const myId      = <?php echo (int)$me['id']; ?>;
+const myName    = <?php echo json_encode($me['fullname']); ?>;
 
 // ── Stickers ──────────────────────────────────────────────────────────────────
 const STICKERS = [
@@ -427,16 +430,34 @@ function renderAll(msgs) {
 }
 
 // ── Send ──────────────────────────────────────────────────────────────────────
+let sending = false;
 function sendMsg() {
+    if (sending) return;
     const inp = document.getElementById('msgInput');
     const txt = inp.value.trim();
     if (!txt) return;
+    sending = true;
     inp.value = '';
     inp.style.height = '';
+
+    // Optimistic: show immediately as "mine"
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const fakeTs = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const fakeMsg = {id: -1, sender_id: myId, sender_name: myName, message: txt, msg_type: 'text', created_at: fakeTs};
+    const container = document.getElementById('msgContainer');
+    const r = buildBubble(fakeMsg, lastSenderId, lastPollDate);
+    container.insertAdjacentHTML('beforeend', r.html);
+    lastSenderId = myId; lastPollDate = r.date;
+    container.scrollTop = container.scrollHeight;
+
     fetch('chat-api.php?ajax=send', {
         method: 'POST',
         body: new URLSearchParams({room_id: currentRoom, message: txt, type: 'text'})
-    }).then(() => poll());
+    }).then(res => res.json()).then(data => {
+        if (!data.ok) { inp.value = txt; } // restore on failure
+    }).catch(() => { inp.value = txt; })
+    .finally(() => { sending = false; poll(); });
 }
 function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
@@ -447,22 +468,30 @@ function handleKey(e) {
 
 // ── Poll ──────────────────────────────────────────────────────────────────────
 function poll() {
+    if (polling) return;
+    polling = true;
     fetch(`chat-api.php?ajax=poll&room_id=${currentRoom}&after=${lastMsgId}`)
         .then(r => r.text())
         .then(text => {
             let msgs; try { msgs = JSON.parse(text); } catch(e) { return; }
             if (msgs.length) {
                 const container = document.getElementById('msgContainer');
-                let prevSender = null, prevDate = null;
                 msgs.forEach(m => {
-                    const r = buildBubble(m, prevSender, prevDate);
+                    // Skip if this is the optimistic message we just sent
+                    if (m.sender_id == myId && m.id > lastMsgId) {
+                        lastMsgId = m.id;
+                        lastSenderId = m.sender_id; lastPollDate = fmtDate(m.created_at);
+                        return; // already shown optimistically
+                    }
+                    if (m.id <= lastMsgId) return;
+                    const r = buildBubble(m, lastSenderId, lastPollDate);
                     container.insertAdjacentHTML('beforeend', r.html);
-                    prevSender = r.senderId; prevDate = r.date;
+                    lastSenderId = r.senderId; lastPollDate = r.date;
+                    lastMsgId = m.id;
                 });
-                lastMsgId = msgs[msgs.length-1].id;
                 container.scrollTop = container.scrollHeight;
             }
-        });
+        }).finally(() => { polling = false; });
 }
 function startPoll() {
     clearInterval(pollTimer);
