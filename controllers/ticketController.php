@@ -87,20 +87,22 @@ class TicketController {
         $this->authController->requireLogin();
 
         $ticket = $this->ticketModel->findById($id);
+        if (!$ticket) return null;
 
-        if (!$ticket) {
-            return null;
-        }
-
-        // Check if user has permission to view this ticket
         $currentUser = $this->authController->getCurrentUser();
-        if (!$this->authController->hasAnyRole(['Admin', 'Manager', 'IT Helpdesk']) &&
-            $ticket['created_by'] != $currentUser['id'] &&
-            $ticket['assigned_to'] != $currentUser['id']) {
+
+        // Admin & Manager: full access to all tickets
+        if ($this->authController->hasAnyRole(['Admin', 'Manager'])) {
+            return $ticket;
+        }
+
+        // IT Helpdesk: only view tickets assigned to them
+        if ($this->authController->hasRole('IT Helpdesk')) {
+            if ($ticket['assigned_to'] == $currentUser['id']) return $ticket;
             return null;
         }
 
-        return $ticket;
+        return null;
     }
 
     public function updateTicket($id, $data) {
@@ -111,85 +113,74 @@ class TicketController {
             return ['success' => false, 'message' => 'Ticket không tồn tại.'];
         }
 
-        // Check permissions
         $currentUser = $this->authController->getCurrentUser();
-        if (!$this->authController->hasAnyRole(['Admin', 'Manager', 'IT Helpdesk']) &&
-            $ticket['created_by'] != $currentUser['id'] &&
-            $ticket['assigned_to'] != $currentUser['id']) {
+        $isAdminOrManager = $this->authController->hasAnyRole(['Admin', 'Manager']);
+        $isITHelpdesk = $this->authController->hasRole('IT Helpdesk');
+
+        // IT Helpdesk: only update tickets assigned to them, only status_id field
+        if ($isITHelpdesk) {
+            if ($ticket['assigned_to'] != $currentUser['id']) {
+                return ['success' => false, 'message' => 'Bạn chỉ có thể cập nhật ticket được phân công cho bạn.'];
+            }
+        } elseif (!$isAdminOrManager) {
             return ['success' => false, 'message' => 'Bạn không có quyền cập nhật ticket này.'];
         }
 
         $updateData = [];
 
-        if (isset($data['title'])) $updateData['title'] = trim($data['title']);
-        if (isset($data['description'])) $updateData['description'] = trim($data['description']);
-        if (isset($data['customer_name'])) $updateData['customer_name'] = trim($data['customer_name']);
-        if (isset($data['customer_email'])) $updateData['customer_email'] = trim($data['customer_email']);
-        if (isset($data['customer_phone'])) $updateData['customer_phone'] = trim($data['customer_phone']);
-        if (isset($data['customer_address'])) $updateData['customer_address'] = trim($data['customer_address']);
-        if (isset($data['category_id'])) $updateData['category_id'] = $data['category_id'];
-        if (isset($data['priority_id'])) $updateData['priority_id'] = $data['priority_id'];
-        if (array_key_exists('due_date', $data)) $updateData['due_date'] = !empty($data['due_date']) ? $data['due_date'] : null;
+        // Only Admin & Manager can edit ticket details
+        if ($isAdminOrManager) {
+            if (isset($data['title'])) $updateData['title'] = trim($data['title']);
+            if (isset($data['description'])) $updateData['description'] = trim($data['description']);
+            if (isset($data['customer_name'])) $updateData['customer_name'] = trim($data['customer_name']);
+            if (isset($data['customer_email'])) $updateData['customer_email'] = trim($data['customer_email']);
+            if (isset($data['customer_phone'])) $updateData['customer_phone'] = trim($data['customer_phone']);
+            if (isset($data['customer_address'])) $updateData['customer_address'] = trim($data['customer_address']);
+            if (isset($data['category_id'])) $updateData['category_id'] = $data['category_id'];
+            if (isset($data['priority_id'])) $updateData['priority_id'] = $data['priority_id'];
+            if (array_key_exists('due_date', $data)) $updateData['due_date'] = !empty($data['due_date']) ? $data['due_date'] : null;
+        }
 
         // Block editing closed tickets
         if ((int)$ticket['status_id'] === 3) {
             return ['success' => false, 'message' => 'Ticket đã đóng, không thể chỉnh sửa.'];
         }
 
-        // Admin and Manager can change status and assignment
-        if ($this->authController->hasAnyRole(['Admin', 'Manager'])) {
-            // Handle assignment
+        // Admin & Manager: can change assignment
+        if ($isAdminOrManager) {
             if (isset($data['assigned_to']) && !empty($data['assigned_to'])) {
-                $currentUserRole = $this->authController->getCurrentUser()['role_name'];
                 $targetUser = $this->userModel->findById($data['assigned_to']);
-                if ($targetUser && canAssignToRole($currentUserRole, $targetUser['role_name'])) {
+                if ($targetUser && canAssignToRole($currentUser['role_name'], $targetUser['role_name'])) {
                     $updateData['assigned_to'] = $data['assigned_to'];
                 }
             } elseif (isset($data['assigned_to']) && $data['assigned_to'] === '') {
                 $updateData['assigned_to'] = null;
             }
+        }
 
-            if (isset($data['status_id'])) {
-                $newStatusId = (int)$data['status_id'];
-                $currentStatusId = (int)$ticket['status_id'];
-                // Require assigned_to when moving out of Mở
-                if ($newStatusId > $currentStatusId && empty($updateData['assigned_to']) && empty($ticket['assigned_to'])) {
-                    return ['success' => false, 'message' => 'Vui lòng phân công nhân viên xử lý trước khi chuyển trạng thái.'];
-                }
-                // Payment gate: must pay before closing
-                if ($newStatusId === 3) {
-                    $billing = $this->billingModel->getBillingByTicket((int)$id);
-                    if ($billing && (int)$billing['price'] > 0 && !in_array($billing['payment_status'], ['paid', 'waived'])) {
-                        return ['success' => false, 'message' => 'Vui lòng hoàn thành thanh toán trước khi đóng ticket.'];
-                    }
-                }
-                $updateData['status_id'] = $newStatusId;
-                if ($newStatusId === 3) {
-                    if (empty($ticket['warranty_end_date'])) {
-                        $updateData['warranty_end_date'] = $this->calcWarrantyEnd($ticket);
-                    }
+        // Status update: Admin, Manager AND IT Helpdesk (assigned only) can update status
+        if (isset($data['status_id'])) {
+            $newStatusId    = (int)$data['status_id'];
+            $currentStatusId = (int)$ticket['status_id'];
+
+            // Require assigned_to before moving out of Mở (Admin/Manager only, since IT Helpdesk is already assigned)
+            if ($isAdminOrManager && $newStatusId !== $currentStatusId && empty($updateData['assigned_to']) && empty($ticket['assigned_to'])) {
+                return ['success' => false, 'message' => 'Vui lòng phân công nhân viên xử lý trước khi chuyển trạng thái.'];
+            }
+
+            // Get closed status ID dynamically
+            $closedStatusId = $this->ticketModel->getStatusIdByName('Đã đóng') ?? 3;
+
+            // Payment gate: must pay before closing
+            if ($newStatusId === $closedStatusId) {
+                $billing = $this->billingModel->getBillingByTicket((int)$id);
+                if ($billing && (int)$billing['price'] > 0 && !in_array($billing['payment_status'], ['paid', 'waived'])) {
+                    return ['success' => false, 'message' => 'Vui lòng hoàn thành thanh toán trước khi đóng ticket.'];
                 }
             }
-        } elseif ($this->authController->hasRole('IT Helpdesk')) {
-            if (isset($data['status_id'])) {
-                $newStatusId = (int)$data['status_id'];
-                $currentStatusId = (int)$ticket['status_id'];
-                if ($newStatusId > $currentStatusId && empty($ticket['assigned_to'])) {
-                    return ['success' => false, 'message' => 'Ticket chưa được phân công. Vui lòng liên hệ Manager để phân công trước.'];
-                }
-                // Payment gate: must pay before closing
-                if ($newStatusId === 3) {
-                    $billing = $this->billingModel->getBillingByTicket((int)$id);
-                    if ($billing && (int)$billing['price'] > 0 && !in_array($billing['payment_status'], ['paid', 'waived'])) {
-                        return ['success' => false, 'message' => 'Vui lòng hoàn thành thanh toán trước khi đóng ticket.'];
-                    }
-                }
-                $updateData['status_id'] = $newStatusId;
-                if ($newStatusId === 3) {
-                    if (empty($ticket['warranty_end_date'])) {
-                        $updateData['warranty_end_date'] = $this->calcWarrantyEnd($ticket);
-                    }
-                }
+            $updateData['status_id'] = $newStatusId;
+            if ($newStatusId === $closedStatusId && empty($ticket['warranty_end_date'])) {
+                $updateData['warranty_end_date'] = $this->calcWarrantyEnd($ticket);
             }
         }
 

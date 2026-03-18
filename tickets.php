@@ -144,8 +144,9 @@ switch ($action) {
         }
 
         $pageTitle = 'Chi tiết Ticket #' . $ticket['id'];
-        $canTransfer = hasAnyRole(['Admin', 'Manager']);
-        $isClosed = (int)$ticket['status_id'] === 3;
+        $canTransfer  = hasAnyRole(['Admin', 'Manager']);
+        $canEdit      = hasAnyRole(['Admin', 'Manager']); // IT Helpdesk cannot edit details
+        $isClosed     = (int)$ticket['status_id'] === 3;
         $pageActions = '<div class="btn-group">
             <a href="tickets.php" class="btn btn-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Quay lại
@@ -153,7 +154,7 @@ switch ($action) {
             ' . ($canTransfer && !$isClosed ? '<button type="button" class="btn btn-warning" onclick="openTransferModal()">
                 <i class="bi bi-arrow-left-right me-1"></i>Chuyển giao
             </button>' : '') . '
-            ' . (!$isClosed && hasAnyRole(['Admin', 'Manager', 'IT Helpdesk']) ? '<a href="tickets.php?action=edit&id=' . $ticket['id'] . '" class="btn btn-primary">
+            ' . ($canEdit && !$isClosed ? '<a href="tickets.php?action=edit&id=' . $ticket['id'] . '" class="btn btn-primary">
                 <i class="bi bi-pencil me-1"></i>Chỉnh sửa
             </a>' : '') . '
             ' . ($isClosed ? '<a href="warranty.php" class="btn btn-success">
@@ -395,7 +396,7 @@ include 'includes/header.php';
                                             <a href="tickets.php?action=view&id=<?php echo $ticket['id']; ?>" class="btn btn-sm btn-outline-primary" title="Xem">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <?php if (hasAnyRole(['Admin', 'Manager', 'IT Helpdesk'])): ?>
+                                            <?php if (hasAnyRole(['Admin', 'Manager'])): ?>
                                                 <a href="tickets.php?action=edit&id=<?php echo $ticket['id']; ?>" class="btn btn-sm btn-outline-secondary" title="Sửa">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
@@ -908,7 +909,7 @@ include 'includes/header.php';
                     <h6 class="mb-0">Thao tác nhanh</h6>
                 </div>
                 <div class="card-body">
-                    <?php if (hasAnyRole(['Admin', 'Manager', 'IT Helpdesk'])): ?>
+                    <?php if (hasAnyRole(['Admin', 'Manager'])): ?>
                         <div class="d-grid gap-2">
                             <a href="tickets.php?action=edit&id=<?php echo $ticket['id']; ?>" class="btn btn-primary">
                                 <i class="bi bi-pencil me-1"></i>Chỉnh sửa Ticket
