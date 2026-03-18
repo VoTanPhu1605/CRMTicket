@@ -454,10 +454,7 @@ function sendMsg() {
     fetch('chat-api.php?ajax=send', {
         method: 'POST',
         body: new URLSearchParams({room_id: currentRoom, message: txt, type: 'text'})
-    }).then(res => res.json()).then(data => {
-        if (!data.ok) { inp.value = txt; } // restore on failure
-    }).catch(() => { inp.value = txt; })
-    .finally(() => { sending = false; poll(); });
+    }).finally(() => { sending = false; poll(); });
 }
 function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
