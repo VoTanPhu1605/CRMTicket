@@ -39,7 +39,7 @@ class Ticket {
             JOIN priorities p ON t.priority_id = p.id
             JOIN statuses s ON t.status_id = s.id
             LEFT JOIN users u_assigned ON t.assigned_to = u_assigned.id
-            JOIN users u_created ON t.created_by = u_created.id
+            LEFT JOIN users u_created ON t.created_by = u_created.id
             WHERE t.id = ?
         ");
         $stmt->execute([$id]);
