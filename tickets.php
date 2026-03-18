@@ -515,8 +515,23 @@ include 'includes/header.php';
                                     <label for="status_id" class="form-label">Trạng thái</label>
                                     <?php
                                     $currentStatusId = (int)$ticket['status_id'];
-                                    $allowedNext = [1 => 2, 2 => 3]; // Mở→Đang xử lý→Đã đóng
-                                    $isClosed = $currentStatusId === 3;
+                                    // Build status name map from DB
+                                    $statusNameMap = [];
+                                    foreach ($statuses as $s) $statusNameMap[$s['name']] = (int)$s['id'];
+                                    $idMo   = $statusNameMap['Mở']          ?? 1;
+                                    $idChờ  = $statusNameMap['Đang chờ']    ?? null;
+                                    $idXuLy = $statusNameMap['Đang xử lý']  ?? 2;
+                                    $idDong = $statusNameMap['Đã đóng']     ?? 3;
+                                    // Allowed next: Mở→Đang chờ, Đang chờ→Đang xử lý, Đang xử lý→Đã đóng
+                                    $allowedNextMap = [
+                                        $idMo   => $idChờ ?? $idXuLy,
+                                        $idChờ  => $idXuLy,
+                                        $idXuLy => $idDong,
+                                    ];
+                                    $isClosed = $currentStatusId === $idDong;
+                                    $nextId   = $allowedNextMap[$currentStatusId] ?? null;
+                                    $nextName = '';
+                                    foreach ($statuses as $s) { if ((int)$s['id'] === $nextId) $nextName = $s['name']; }
                                     ?>
                                     <?php if ($isClosed): ?>
                                         <div class="form-control bg-light text-muted">
@@ -527,8 +542,7 @@ include 'includes/header.php';
                                         <select class="form-select" id="status_id" name="status_id">
                                             <?php foreach ($statuses as $status):
                                                 $sid = (int)$status['id'];
-                                                // Show current and allowed next only
-                                                if ($sid !== $currentStatusId && $sid !== ($allowedNext[$currentStatusId] ?? -1)) continue;
+                                                if ($sid !== $currentStatusId && $sid !== $nextId) continue;
                                             ?>
                                                 <option value="<?php echo $sid; ?>"
                                                         <?php echo $sid === $currentStatusId ? 'selected' : ''; ?>>
@@ -537,13 +551,12 @@ include 'includes/header.php';
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
+                                        <?php if ($nextName): ?>
                                         <div class="form-text text-muted">
-                                            <?php if ($currentStatusId === 1): ?>
-                                                <i class="bi bi-arrow-right"></i> Tiếp theo: Đang xử lý
-                                            <?php elseif ($currentStatusId === 2): ?>
-                                                <i class="bi bi-arrow-right"></i> Tiếp theo: Đã đóng (sau khi đóng sẽ không thể thay đổi)
-                                            <?php endif; ?>
+                                            <i class="bi bi-arrow-right"></i> Tiếp theo: <?php echo htmlspecialchars($nextName); ?>
+                                            <?php if ($nextId === $idDong): ?> (sau khi đóng sẽ không thể thay đổi)<?php endif; ?>
                                         </div>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
                                 <?php
