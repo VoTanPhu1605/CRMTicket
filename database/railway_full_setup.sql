@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS statuses (
     name VARCHAR(50) NOT NULL UNIQUE,
     color VARCHAR(20) NOT NULL
 );
-INSERT IGNORE INTO statuses (name, color) VALUES ('Mở','#fef3c7'),('Đang xử lý','#dbeafe'),('Đã đóng','#d1fae5');
+INSERT IGNORE INTO statuses (name, color) VALUES ('Mở','#fef3c7'),('Đang xử lý','#dbeafe'),('Đã đóng','#d1fae5'),('Đang chờ','#fde68a');
 
 CREATE TABLE IF NOT EXISTS tickets (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     customer_name VARCHAR(100) NOT NULL,
     customer_email VARCHAR(100) NOT NULL,
     customer_phone VARCHAR(20),
+    customer_address VARCHAR(255),
     category_id INT NOT NULL,
     priority_id INT NOT NULL,
     status_id INT NOT NULL,

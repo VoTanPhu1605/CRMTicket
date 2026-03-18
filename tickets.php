@@ -477,6 +477,15 @@ include 'includes/header.php';
                                 <div class="invalid-feedback">Số điện thoại không hợp lệ.</div>
                             </div>
                             <div class="col-md-6 mb-3">
+                                <label for="customer_address" class="form-label">Địa chỉ <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="customer_address" name="customer_address" required
+                                       placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
+                                       value="<?php echo $action === 'edit' ? htmlspecialchars($ticket['customer_address'] ?? '') : (isset($_POST['customer_address']) ? htmlspecialchars($_POST['customer_address']) : ''); ?>">
+                                <div class="invalid-feedback">Vui lòng nhập địa chỉ khách hàng.</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
                                 <label for="priority_id" class="form-label">Ưu tiên <span class="text-danger">*</span></label>
                                 <select class="form-select" id="priority_id" name="priority_id" required>
                                     <option value="">Chọn ưu tiên</option>
@@ -617,6 +626,9 @@ include 'includes/header.php';
                             <p><strong>Email:</strong> <?php echo htmlspecialchars($ticket['customer_email']); ?></p>
                             <?php if ($ticket['customer_phone']): ?>
                                 <p><strong>Điện thoại:</strong> <?php echo htmlspecialchars($ticket['customer_phone']); ?></p>
+                            <?php endif; ?>
+                            <?php if (!empty($ticket['customer_address'])): ?>
+                                <p><strong>Địa chỉ:</strong> <?php echo htmlspecialchars($ticket['customer_address']); ?></p>
                             <?php endif; ?>
                         </div>
                         <div class="col-md-6">

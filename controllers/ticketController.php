@@ -42,6 +42,7 @@ class TicketController {
             'customer_name' => trim($data['customer_name']),
             'customer_email' => trim($data['customer_email']),
             'customer_phone' => trim($data['customer_phone'] ?? ''),
+            'customer_address' => trim($data['customer_address'] ?? ''),
             'category_id' => $data['category_id'],
             'priority_id' => $data['priority_id'],
             'status_id' => 1, // Default to "Mở"
@@ -50,8 +51,8 @@ class TicketController {
         ];
 
         // Validate required fields
-        if (empty($ticketData['title']) || empty($ticketData['customer_name']) || empty($ticketData['customer_email'])) {
-            return ['success' => false, 'message' => 'Vui lòng điền đầy đủ thông tin bắt buộc.'];
+        if (empty($ticketData['title']) || empty($ticketData['customer_name']) || empty($ticketData['customer_email']) || empty($ticketData['customer_address'])) {
+            return ['success' => false, 'message' => 'Vui lòng điền đầy đủ thông tin bắt buộc (bao gồm địa chỉ khách hàng).'];
         }
 
         // Validate due_date is not in the past
@@ -125,6 +126,7 @@ class TicketController {
         if (isset($data['customer_name'])) $updateData['customer_name'] = trim($data['customer_name']);
         if (isset($data['customer_email'])) $updateData['customer_email'] = trim($data['customer_email']);
         if (isset($data['customer_phone'])) $updateData['customer_phone'] = trim($data['customer_phone']);
+        if (isset($data['customer_address'])) $updateData['customer_address'] = trim($data['customer_address']);
         if (isset($data['category_id'])) $updateData['category_id'] = $data['category_id'];
         if (isset($data['priority_id'])) $updateData['priority_id'] = $data['priority_id'];
         if (array_key_exists('due_date', $data)) $updateData['due_date'] = !empty($data['due_date']) ? $data['due_date'] : null;

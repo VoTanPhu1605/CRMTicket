@@ -150,9 +150,28 @@ class Ticket {
         return $stmt->execute($values);
     }
 
+    public function getStatusIdByName($name) {
+        $stmt = $this->pdo->prepare("SELECT id FROM statuses WHERE name = ?");
+        $stmt->execute([$name]);
+        $row = $stmt->fetch();
+        return $row ? (int)$row['id'] : null;
+    }
+
     public function updateStatus($id, $newStatusId) {
-        // Allowed transitions: 1(Mở)→2(Đang xử lý)→3(Đã đóng), no backwards
-        $allowed = [1 => [2], 2 => [3], 3 => []];
+        // Get status IDs dynamically by name
+        $idMo        = $this->getStatusIdByName('Mở');
+        $idChờ       = $this->getStatusIdByName('Đang chờ');
+        $idXuLy      = $this->getStatusIdByName('Đang xử lý');
+        $idDong      = $this->getStatusIdByName('Đã đóng');
+
+        // Allowed transitions: Mở→Đang chờ→Đang xử lý→Đã đóng
+        $allowed = [
+            $idMo   => array_filter([$idChờ, $idXuLy]),
+            $idChờ  => [$idXuLy],
+            $idXuLy => [$idDong],
+            $idDong => [],
+        ];
+
         $stmt = $this->pdo->prepare("SELECT status_id FROM tickets WHERE id = ?");
         $stmt->execute([$id]);
         $row = $stmt->fetch();
