@@ -19,7 +19,7 @@ if (empty($_SESSION['user_id'])) {
 }
 
 if (!AI_ENABLED) {
-    aiJson(['success' => false, 'message' => 'AI chưa được cấu hình. Vui lòng thêm GEMINI_API_KEY vào config/ai_config.php.']);
+    aiJson(['success' => false, 'message' => 'AI chưa được cấu hình. Vui lòng thêm GROQ_API_KEY vào config/ai_config.php.']);
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -56,21 +56,26 @@ switch ($action) {
         break;
 }
 
-// Call Google Gemini API
-$fullMsg = $systemPrompt . "\n\n---\n\n" . $userMsg;
+// Call Groq API (OpenAI-compatible)
 $payload = [
-    'contents'         => [['role' => 'user', 'parts' => [['text' => $fullMsg]]]],
-    'generationConfig' => ['maxOutputTokens' => 4096, 'temperature' => 0.7],
+    'model'       => GROQ_MODEL,
+    'messages'    => [
+        ['role' => 'system', 'content' => $systemPrompt],
+        ['role' => 'user',   'content' => $userMsg],
+    ],
+    'max_tokens'  => 4096,
+    'temperature' => 0.7,
 ];
 
-$url = 'https://generativelanguage.googleapis.com/v1beta/models/' . GEMINI_MODEL . ':generateContent?key=' . GEMINI_API_KEY;
-
-$ch = curl_init($url);
+$ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST           => true,
     CURLOPT_POSTFIELDS     => json_encode($payload),
-    CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+    CURLOPT_HTTPHEADER     => [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . GROQ_API_KEY,
+    ],
     CURLOPT_TIMEOUT        => 30,
     CURLOPT_SSL_VERIFYPEER => false,
 ]);
@@ -80,14 +85,14 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($response === false) {
-    aiJson(['success' => false, 'message' => 'Không thể kết nối đến Gemini API.']);
+    aiJson(['success' => false, 'message' => 'Không thể kết nối đến Groq API.']);
 }
 
-$data = json_decode($response, true);
-$reply = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+$data  = json_decode($response, true);
+$reply = $data['choices'][0]['message']['content'] ?? '';
 if ($httpCode !== 200 || empty($reply)) {
     $errMsg = $data['error']['message'] ?? ('HTTP ' . $httpCode . ': ' . substr($response, 0, 200));
-    aiJson(['success' => false, 'message' => 'Gemini lỗi: ' . $errMsg]);
+    aiJson(['success' => false, 'message' => 'Groq lỗi: ' . $errMsg]);
 }
 
 aiJson(['success' => true, 'reply' => $reply]);
