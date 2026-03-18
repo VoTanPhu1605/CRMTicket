@@ -93,7 +93,7 @@ function roleColor($role) {
 .chat-messages{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:4px}
 .chat-msg{display:flex;gap:8px;max-width:80%;align-items:flex-end}
 .chat-msg.mine{align-self:flex-end;flex-direction:row-reverse}
-.chat-msg-bubble{padding:8px 12px;border-radius:14px;font-size:13.5px;line-height:1.5;overflow-wrap:break-word;word-break:break-word;max-width:100%;min-width:48px}
+.chat-msg-bubble{padding:8px 12px;border-radius:14px;font-size:13.5px;line-height:1.5;overflow-wrap:break-word;word-break:normal;max-width:100%;min-width:48px}
 .chat-msg .chat-msg-bubble{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.07);border-bottom-left-radius:4px}
 .chat-msg.mine .chat-msg-bubble{background:var(--primary);color:#fff;border-bottom-right-radius:4px}
 .chat-msg-sticker{font-size:52px;line-height:1;background:none!important;box-shadow:none!important;padding:4px 6px!important;min-width:unset}
