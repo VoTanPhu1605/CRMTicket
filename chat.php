@@ -362,10 +362,11 @@ document.addEventListener('click', e => {
 
 function sendSticker(emoji) {
     document.getElementById('stickerPicker').classList.remove('show');
-    fetch('chat-api.php?ajax=send', {
-        method: 'POST',
-        body: new URLSearchParams({room_id: currentRoom, message: emoji, type: 'sticker'})
-    }).then(() => poll());
+    const inp = document.getElementById('msgInput');
+    inp.value += emoji;
+    inp.focus();
+    inp.style.height = 'auto';
+    inp.style.height = Math.min(inp.scrollHeight, 100) + 'px';
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
