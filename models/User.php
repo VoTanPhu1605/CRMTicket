@@ -94,5 +94,17 @@ class User {
         $stmt = $this->pdo->query("SELECT * FROM roles");
         return $stmt->fetchAll();
     }
+
+    public function countAdmins() {
+        $stmt = $this->pdo->query("SELECT COUNT(*) FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'Admin'");
+        return (int)$stmt->fetchColumn();
+    }
+
+    public function isAdminRole($roleId) {
+        $stmt = $this->pdo->prepare("SELECT name FROM roles WHERE id = ?");
+        $stmt->execute([$roleId]);
+        $row = $stmt->fetch();
+        return $row && $row['name'] === 'Admin';
+    }
 }
 ?>

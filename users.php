@@ -18,6 +18,8 @@ switch ($action) {
         </a>';
 
         $roles = $userController->getRoles();
+        $userModel = new User();
+        $adminExists = $userModel->countAdmins() >= 1;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = $userController->createUser($_POST);
@@ -46,6 +48,8 @@ switch ($action) {
         </a>';
 
         $roles = $userController->getRoles();
+        $userModel = new User();
+        $adminExists = $userModel->countAdmins() >= 1;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = $userController->updateUser($id, $_POST);
@@ -210,12 +214,16 @@ include 'includes/header.php';
                                 <select class="form-select" id="role_id" name="role_id" required>
                                     <option value="">Chọn vai trò</option>
                                     <?php foreach ($roles as $role): ?>
-                                        <?php if ($role['name'] !== 'Admin' || hasRole('Admin')): // Only Admin can assign Admin role ?>
+                                        <?php
+                                        $isAdminRole = ($role['name'] === 'Admin');
+                                        $isCurrentUserRole = ($action === 'edit' && isset($user) && $user['role_id'] == $role['id']);
+                                        // Hide Admin option if: already 1 admin exists AND this user isn't already the admin
+                                        if ($isAdminRole && $adminExists && !$isCurrentUserRole) continue;
+                                        ?>
                                             <option value="<?php echo $role['id']; ?>"
-                                                    <?php echo ($action === 'edit' && $user['role_id'] == $role['id']) || (isset($_POST['role_id']) && $_POST['role_id'] == $role['id']) ? 'selected' : ''; ?>>
+                                                    <?php echo $isCurrentUserRole || (isset($_POST['role_id']) && $_POST['role_id'] == $role['id']) ? 'selected' : ''; ?>>
                                                 <?php echo $role['name']; ?>
                                             </option>
-                                        <?php endif; ?>
                                     <?php endforeach; ?>
                                 </select>
                             </div>

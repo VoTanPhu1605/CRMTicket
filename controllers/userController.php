@@ -54,6 +54,11 @@ class UserController {
             return ['success' => false, 'message' => 'Email đã được sử dụng.'];
         }
 
+        // Only 1 Admin allowed
+        if ($this->userModel->isAdminRole($userData['role_id']) && $this->userModel->countAdmins() >= 1) {
+            return ['success' => false, 'message' => 'Hệ thống chỉ cho phép 1 tài khoản Administrator.'];
+        }
+
         // Hash password
         $userData['password'] = password_hash($userData['password'], PASSWORD_DEFAULT);
 
@@ -101,7 +106,14 @@ class UserController {
             $updateData['email'] = $email;
         }
         if (isset($data['phone'])) $updateData['phone'] = trim($data['phone']);
-        if (isset($data['role_id'])) $updateData['role_id'] = (int)$data['role_id'];
+        if (isset($data['role_id'])) {
+            $newRoleId = (int)$data['role_id'];
+            // Block promoting another user to Admin if an Admin already exists (and this user isn't already Admin)
+            if ($this->userModel->isAdminRole($newRoleId) && !$this->userModel->isAdminRole($user['role_id']) && $this->userModel->countAdmins() >= 1) {
+                return ['success' => false, 'message' => 'Hệ thống chỉ cho phép 1 tài khoản Administrator.'];
+            }
+            $updateData['role_id'] = $newRoleId;
+        }
         if (isset($data['status']) && in_array($data['status'], ['active', 'inactive'])) {
             $updateData['status'] = $data['status'];
         }
