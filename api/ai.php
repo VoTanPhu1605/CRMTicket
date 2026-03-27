@@ -14,7 +14,7 @@ function aiJson($data) {
 }
 
 if (empty($_SESSION['user_id']))  aiJson(['success'=>false,'message'=>'Chưa đăng nhập.']);
-if (!AI_ENABLED)                  aiJson(['success'=>false,'message'=>'Chưa cấu hình GROQ_API_KEY.']);
+if (!AI_ENABLED)                  aiJson(['success'=>false,'message'=>'Chưa cấu hình GEMINI_API_KEY.']);
 
 $input   = json_decode(file_get_contents('php://input'), true);
 $action  = $input['action']  ?? 'crm_agent';
@@ -22,15 +22,16 @@ $content = trim($input['content'] ?? '');
 $context = $input['context'] ?? [];
 $history = $input['history'] ?? [];
 
-// ── Groq HTTP ─────────────────────────────────────────────────────────────────
-function callGroq($payload) {
-    $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
+// ── Gemini HTTP (OpenAI-compatible endpoint) ──────────────────────────────────
+function callGemini($payload) {
+    $url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    $ch  = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => json_encode($payload),
-        CURLOPT_HTTPHEADER     => ['Content-Type: application/json','Authorization: Bearer '.GROQ_API_KEY],
-        CURLOPT_TIMEOUT        => 45,
+        CURLOPT_HTTPHEADER     => ['Content-Type: application/json','Authorization: Bearer '.GEMINI_API_KEY],
+        CURLOPT_TIMEOUT        => 60,
         CURLOPT_SSL_VERIFYPEER => false,
     ]);
     $res  = curl_exec($ch);
@@ -272,17 +273,17 @@ if ($action === 'crm_agent') {
     $messages[] = ['role'=>'user','content'=>$content ?: 'Thống kê hệ thống'];
 
     for ($i=0; $i<4; $i++) {
-        $payload = ['model'=>GROQ_MODEL,'messages'=>$messages,'tools'=>getCRMTools(),'tool_choice'=>'auto','max_tokens'=>500,'temperature'=>0.2];
-        [$res,$code] = callGroq($payload);
-        if ($res===false) aiJson(['success'=>false,'message'=>'Không thể kết nối Groq.']);
+        $payload = ['model'=>GEMINI_MODEL,'messages'=>$messages,'tools'=>getCRMTools(),'tool_choice'=>'auto','max_tokens'=>500,'temperature'=>0.2];
+        [$res,$code] = callGemini($payload);
+        if ($res===false) aiJson(['success'=>false,'message'=>'Không thể kết nối AI.']);
         $d = json_decode($res,true);
         // Auto-retry once after 3s on rate limit
         if ($code===429) {
             sleep(3);
-            [$res,$code] = callGroq($payload);
+            [$res,$code] = callGemini($payload);
             $d = json_decode($res,true);
         }
-        if ($code!==200) aiJson(['success'=>false,'message'=>'Groq lỗi: '.($d['error']['message']??'HTTP '.$code)]);
+        if ($code!==200) aiJson(['success'=>false,'message'=>'AI lỗi: '.($d['error']['message']??'HTTP '.$code)]);
         $msg = $d['choices'][0]['message'];
         $messages[] = $msg;
         if (empty($msg['tool_calls'])) aiJson(['success'=>true,'reply'=>$msg['content']??'']);
@@ -310,8 +311,8 @@ switch ($action) {
     default:
         $sys="Trợ lý IT HelpDesk. Tiếng Việt ngắn gọn."; break;
 }
-[$res,$code] = callGroq(['model'=>GROQ_MODEL,'messages'=>[['role'=>'system','content'=>$sys],['role'=>'user','content'=>$um]],'max_tokens'=>1024,'temperature'=>0.7]);
-if ($res===false) aiJson(['success'=>false,'message'=>'Không thể kết nối Groq.']);
+[$res,$code] = callGemini(['model'=>GEMINI_MODEL,'messages'=>[['role'=>'system','content'=>$sys],['role'=>'user','content'=>$um]],'max_tokens'=>1024,'temperature'=>0.7]);
+if ($res===false) aiJson(['success'=>false,'message'=>'Không thể kết nối AI.']);
 $d=json_decode($res,true); $reply=$d['choices'][0]['message']['content']??'';
-if ($code!==200||empty($reply)) aiJson(['success'=>false,'message'=>'Groq lỗi: '.($d['error']['message']??'HTTP '.$code)]);
+if ($code!==200||empty($reply)) aiJson(['success'=>false,'message'=>'AI lỗi: '.($d['error']['message']??'HTTP '.$code)]);
 aiJson(['success'=>true,'reply'=>$reply]);
