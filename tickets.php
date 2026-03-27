@@ -571,7 +571,7 @@ include 'includes/header.php';
                                                 <option value="<?php echo $sid; ?>"
                                                         <?php echo $sid === $currentStatusId ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($status['name']); ?>
-                                                    <?php echo $sid === $currentStatusId ? '(hiện tại)' : '→ chuyển sang'; ?>
+                                                    <?php echo $sid === $currentStatusId ? '(hiện tại)' : ''; ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
