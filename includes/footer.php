@@ -30,5 +30,27 @@ document.querySelectorAll('.alert:not(.d-none)').forEach(el => {
 
 <script src="assets/js/ai-assistant.js"></script>
 <?php if (isset($extraScripts)) echo $extraScripts; ?>
+
+<!-- Global delete confirmation modal -->
+<div id="deleteConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:28px;max-width:400px;width:94%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <div style="width:42px;height:42px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="bi bi-trash" style="color:#dc2626;font-size:18px;"></i>
+            </div>
+            <div>
+                <div style="font-weight:700;font-size:15px;">Xác nhận xóa</div>
+                <div style="color:#64748b;font-size:13px;">Ticket #<span id="deleteTicketId"></span></div>
+            </div>
+        </div>
+        <p style="color:#475569;font-size:13.5px;margin-bottom:20px;">Hành động này <strong>không thể hoàn tác</strong>. Toàn bộ ghi chú, lịch sử và thanh toán của ticket sẽ bị xóa vĩnh viễn.</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button onclick="document.getElementById('deleteConfirmModal').style.display='none'" style="padding:8px 20px;border:1px solid #dde1e7;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Hủy</button>
+            <button id="deleteConfirmBtn" style="padding:8px 24px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                <i class="bi bi-trash me-1"></i>Xóa vĩnh viễn
+            </button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

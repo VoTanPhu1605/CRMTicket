@@ -632,11 +632,68 @@ include 'includes/header.php';
                         <?php endif; ?>
 
                         <div class="d-flex justify-content-end">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-1"></i><?php echo $action === 'create' ? 'Tạo Ticket' : 'Cập nhật'; ?>
+                            <?php if ($action === 'create'): ?>
+                            <button type="button" class="btn btn-primary" onclick="showCreateConfirm()">
+                                <i class="bi bi-check-circle me-1"></i>Tạo Ticket
                             </button>
+                            <?php else: ?>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Cập nhật
+                            </button>
+                            <?php endif; ?>
                         </div>
                     </form>
+
+                    <?php if ($action === 'create'): ?>
+                    <!-- Confirm create modal -->
+                    <div id="confirmCreateModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;align-items:center;justify-content:center;">
+                        <div style="background:#fff;border-radius:12px;padding:28px 28px 20px;max-width:440px;width:94%;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+                            <h5 style="margin:0 0 4px;font-weight:700;"><i class="bi bi-ticket-perforated me-2 text-primary"></i>Xác nhận tạo ticket</h5>
+                            <p style="color:#64748b;font-size:13px;margin-bottom:16px;">Kiểm tra thông tin trước khi tạo:</p>
+                            <div id="confirmSummary" style="background:#f8fafc;border-radius:8px;padding:14px 16px;font-size:13.5px;line-height:1.8;border:1px solid #e2e8f0;margin-bottom:20px;"></div>
+                            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                                <button onclick="document.getElementById('confirmCreateModal').style.display='none'" style="padding:8px 20px;border:1px solid #dde1e7;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Kiểm tra lại</button>
+                                <button onclick="document.getElementById('ticketForm').submit()" style="padding:8px 24px;background:#1a6bb5;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                                    <i class="bi bi-check-circle me-1"></i>Xác nhận tạo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <script>
+                    function showCreateConfirm() {
+                        var form = document.getElementById('ticketForm');
+                        // Trigger HTML5 validation first
+                        if (!form.checkValidity()) { form.reportValidity(); return; }
+                        // Also check address fields manually
+                        var addr = document.getElementById('customer_address');
+                        if (!addr || !addr.value.trim()) {
+                            var prov = document.getElementById('province_select');
+                            if (prov && !prov.value) { prov.classList.add('is-invalid'); prov.focus(); return; }
+                            var det = document.getElementById('address_detail');
+                            if (det && !det.value.trim()) { det.classList.add('is-invalid'); det.focus(); return; }
+                        }
+                        var title    = document.getElementById('title')?.value || '—';
+                        var cust     = document.getElementById('customer_name')?.value || '—';
+                        var email    = document.getElementById('customer_email')?.value || '—';
+                        var phone    = document.getElementById('customer_phone')?.value || '—';
+                        var address  = document.getElementById('customer_address')?.value || '—';
+                        var catSel   = document.getElementById('category_id');
+                        var priSel   = document.getElementById('priority_id');
+                        var cat      = catSel?.options[catSel.selectedIndex]?.text || '—';
+                        var pri      = priSel?.options[priSel.selectedIndex]?.text || '—';
+                        var due      = document.getElementById('due_date')?.value || '—';
+                        document.getElementById('confirmSummary').innerHTML =
+                            '<b>Tiêu đề:</b> ' + title + '<br>' +
+                            '<b>Khách hàng:</b> ' + cust + '<br>' +
+                            '<b>Email:</b> ' + email + '<br>' +
+                            '<b>SĐT:</b> ' + (phone || '—') + '<br>' +
+                            '<b>Địa chỉ:</b> ' + address + '<br>' +
+                            '<b>Danh mục:</b> ' + cat + ' &nbsp;|&nbsp; <b>Ưu tiên:</b> ' + pri + '<br>' +
+                            '<b>Hạn xử lý:</b> ' + due;
+                        document.getElementById('confirmCreateModal').style.display = 'flex';
+                    }
+                    </script>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -1606,9 +1663,19 @@ function waiveBilling(billingId) {
 })();
 
 function deleteTicket(id) {
-    if (confirm('Bạn có chắc chắn muốn xóa ticket này?')) {
-        window.location.href = 'tickets.php?action=delete&id=' + id;
+    var modal = document.getElementById('deleteConfirmModal');
+    if (!modal) {
+        // Fallback
+        if (confirm('Xóa ticket #' + id + '? Hành động này không thể hoàn tác!')) {
+            window.location.href = 'tickets.php?action=delete&id=' + id;
+        }
+        return;
     }
+    document.getElementById('deleteTicketId').textContent = id;
+    document.getElementById('deleteConfirmBtn').onclick = function() {
+        window.location.href = 'tickets.php?action=delete&id=' + id;
+    };
+    modal.style.display = 'flex';
 }
 
 // Create form: load service templates when category changes

@@ -12,6 +12,7 @@ $files = [
     'database/railway_full_setup.sql',
     'database/payment_methods_migration.sql',
     'database/status_address_migration.sql',
+    'database/cleanup_demo.sql',
 ];
 
 $results = [];
