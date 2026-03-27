@@ -14,7 +14,7 @@ function aiJson($data) {
 }
 
 if (empty($_SESSION['user_id']))  aiJson(['success'=>false,'message'=>'Chưa đăng nhập.']);
-if (!AI_ENABLED)                  aiJson(['success'=>false,'message'=>'Chưa cấu hình GEMINI_API_KEY.']);
+if (!AI_ENABLED)                  aiJson(['success'=>false,'message'=>'Chưa cấu hình OPENROUTER_API_KEY.']);
 
 $input   = json_decode(file_get_contents('php://input'), true);
 $action  = $input['action']  ?? 'crm_agent';
