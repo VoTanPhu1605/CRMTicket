@@ -238,22 +238,36 @@ function executeCRMTool($pdo, $name, $args) {
     return ['loi'=>'Tool không tồn tại: '.$name];
 }
 
+// ── Truncate tool result to stay within TPM ───────────────────────────────────
+function truncateToolResult($result, $maxChars = 1800) {
+    $json = json_encode($result, JSON_UNESCAPED_UNICODE);
+    if (strlen($json) <= $maxChars) return $json;
+    // If array of rows, trim rows until fits
+    if (is_array($result) && isset($result[0])) {
+        while (count($result) > 1) {
+            array_pop($result);
+            $json = json_encode($result, JSON_UNESCAPED_UNICODE) . '...(bị rút gọn)';
+            if (strlen($json) <= $maxChars) return $json;
+        }
+    }
+    return substr($json, 0, $maxChars) . '...(bị rút gọn)';
+}
+
 // ── CRM Agent (tool calling loop) ─────────────────────────────────────────────
 if ($action === 'crm_agent') {
-    $sysPrompt = "Bạn là CRM AI Agent cho hệ thống HelpDesk IT. Người dùng: ".($_SESSION['fullname']??'')." (".($_SESSION['role_name']??'').").\n"
-    ."Luôn dùng tools để lấy dữ liệu thực trước khi trả lời. Trả lời tiếng Việt, ngắn gọn có cấu trúc.\n"
-    ."Đề xuất phân công: ưu tiên người ít việc + chuyên môn danh mục + vai trò phù hợp độ khó.\n"
-    ."Ticket ID viết dạng #123. Khi liệt kê dùng bullet hoặc bảng ngắn.";
+    // Ultra-compact system prompt to save tokens
+    $sysPrompt = "CRM AI Agent HelpDesk. Dùng tools lấy dữ liệu thực. Trả lời tiếng Việt, ngắn gọn. Ticket dùng #ID. Đề xuất phân công: ít việc + chuyên môn + vai trò phù hợp.";
 
     $messages = [['role'=>'system','content'=>$sysPrompt]];
-    foreach (array_slice($history,-6) as $h) {
+    // Max 4 history turns to save tokens
+    foreach (array_slice($history,-4) as $h) {
         if (!empty($h['role']) && !empty($h['content']))
-            $messages[] = ['role'=>$h['role'],'content'=>$h['content']];
+            $messages[] = ['role'=>$h['role'],'content'=>substr($h['content'],0,300)];
     }
-    $messages[] = ['role'=>'user','content'=>$content ?: 'Xin chào, hệ thống CRM đang thế nào?'];
+    $messages[] = ['role'=>'user','content'=>$content ?: 'Thống kê hệ thống'];
 
-    for ($i=0; $i<5; $i++) {
-        [$res,$code] = callGroq(['model'=>GROQ_MODEL,'messages'=>$messages,'tools'=>getCRMTools(),'tool_choice'=>'auto','max_tokens'=>1500,'temperature'=>0.2]);
+    for ($i=0; $i<4; $i++) {
+        [$res,$code] = callGroq(['model'=>GROQ_MODEL,'messages'=>$messages,'tools'=>getCRMTools(),'tool_choice'=>'auto','max_tokens'=>700,'temperature'=>0.2]);
         if ($res===false) aiJson(['success'=>false,'message'=>'Không thể kết nối Groq.']);
         $d = json_decode($res,true);
         if ($code!==200) aiJson(['success'=>false,'message'=>'Groq lỗi: '.($d['error']['message']??'HTTP '.$code)]);
@@ -262,7 +276,7 @@ if ($action === 'crm_agent') {
         if (empty($msg['tool_calls'])) aiJson(['success'=>true,'reply'=>$msg['content']??'']);
         foreach ($msg['tool_calls'] as $tc) {
             $result = executeCRMTool($pdo,$tc['function']['name'],json_decode($tc['function']['arguments'],true)??[]);
-            $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($result,JSON_UNESCAPED_UNICODE)];
+            $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>truncateToolResult($result)];
         }
     }
     aiJson(['success'=>true,'reply'=>'Xin lỗi, không thể xử lý yêu cầu.']);
