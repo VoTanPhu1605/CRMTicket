@@ -272,16 +272,17 @@ if ($action === 'crm_agent') {
     }
     $messages[] = ['role'=>'user','content'=>$content ?: 'Thống kê hệ thống'];
 
-    for ($i=0; $i<4; $i++) {
+    for ($i=0; $i<3; $i++) {
         $payload = ['model'=>GEMINI_MODEL,'messages'=>$messages,'tools'=>getCRMTools(),'tool_choice'=>'auto','max_tokens'=>500,'temperature'=>0.2];
         [$res,$code] = callGemini($payload);
         if ($res===false) aiJson(['success'=>false,'message'=>'Không thể kết nối AI.']);
         $d = json_decode($res,true);
-        // Auto-retry once after 3s on rate limit
+        // Auto-retry on rate limit (429) with backoff
         if ($code===429) {
-            sleep(3);
+            sleep(12);
             [$res,$code] = callGemini($payload);
             $d = json_decode($res,true);
+            if ($code===429) { sleep(20); [$res,$code] = callGemini($payload); $d = json_decode($res,true); }
         }
         if ($code!==200) aiJson(['success'=>false,'message'=>'AI lỗi: '.($d['error']['message']??'HTTP '.$code)]);
         $msg = $d['choices'][0]['message'];
