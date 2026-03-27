@@ -1,11 +1,10 @@
 <?php
-// AI config — Google Gemini API
-// Set GEMINI_API_KEY in Railway environment variables
-$_ai_key = getenv('GEMINI_API_KEY')
-        ?: ($_ENV['GEMINI_API_KEY'] ?? '')
-        ?: ($_SERVER['GEMINI_API_KEY'] ?? '')
-        ?: 'AIzaSyBm4-uyvi6j1s-67qRfIakGYaLeHJUfY10';
+// AI config — Groq API (key set in Railway env var GROQ_API_KEY)
+$_ai_key = getenv('GROQ_API_KEY')
+        ?: ($_ENV['GROQ_API_KEY'] ?? '')
+        ?: ($_SERVER['GROQ_API_KEY'] ?? '');
 
-define('GEMINI_API_KEY', $_ai_key);
-define('GEMINI_MODEL',   'gemini-2.0-flash-lite'); // 30 RPM, 1M TPM free
+define('GROQ_API_KEY', $_ai_key);
+define('GEMINI_API_KEY', $_ai_key);   // alias dùng trong ai.php
+define('GEMINI_MODEL',   'llama-3.1-8b-instant');
 define('AI_ENABLED',     !empty($_ai_key));

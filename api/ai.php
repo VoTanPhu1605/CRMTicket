@@ -22,9 +22,9 @@ $content = trim($input['content'] ?? '');
 $context = $input['context'] ?? [];
 $history = $input['history'] ?? [];
 
-// ── Gemini API (OpenAI-compatible endpoint) ───────────────────────────────────
+// ── Groq API ──────────────────────────────────────────────────────────────────
 function callGemini($payload) {
-    $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+    $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
