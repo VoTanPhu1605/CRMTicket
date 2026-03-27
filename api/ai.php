@@ -110,16 +110,21 @@ function executeCRMTool($pdo, $name, $args) {
             $id = (int)($args['ticket_id'] ?? 0);
             if (!$id) return ['loi'=>'Thiếu ticket_id'];
             $s = $pdo->prepare("
-                SELECT t.*, c.name as danh_muc, p.name as uu_tien,
-                       s.name as trang_thai,
+                SELECT t.id,t.title,t.description,t.customer_name,t.customer_email,
+                       t.customer_phone,t.customer_address,t.due_date,t.created_at,
+                       t.warranty_end_date,
+                       c.name as danh_muc, p.name as uu_tien, s.name as trang_thai,
                        ua.fullname as phan_cong_cho, uc.fullname as nguoi_tao,
-                       b.price as gia, b.payment_status as thanh_toan, b.template_name as dich_vu
+                       b.price as gia, b.payment_status as thanh_toan,
+                       st.name as dich_vu
                 FROM tickets t
-                JOIN categories c ON c.id=t.category_id JOIN priorities p ON p.id=t.priority_id
-                JOIN statuses s   ON s.id=t.status_id
+                JOIN categories c  ON c.id=t.category_id
+                JOIN priorities p  ON p.id=t.priority_id
+                JOIN statuses s    ON s.id=t.status_id
                 LEFT JOIN users ua ON ua.id=t.assigned_to
                 LEFT JOIN users uc ON uc.id=t.created_by
-                LEFT JOIN ticket_billing b ON b.ticket_id=t.id
+                LEFT JOIN ticket_billing b      ON b.ticket_id=t.id
+                LEFT JOIN service_templates st  ON st.id=b.service_template_id
                 WHERE t.id=?");
             $s->execute([$id]);
             $ticket = $s->fetch(PDO::FETCH_ASSOC);
@@ -267,9 +272,16 @@ if ($action === 'crm_agent') {
     $messages[] = ['role'=>'user','content'=>$content ?: 'Thống kê hệ thống'];
 
     for ($i=0; $i<4; $i++) {
-        [$res,$code] = callGroq(['model'=>GROQ_MODEL,'messages'=>$messages,'tools'=>getCRMTools(),'tool_choice'=>'auto','max_tokens'=>700,'temperature'=>0.2]);
+        $payload = ['model'=>GROQ_MODEL,'messages'=>$messages,'tools'=>getCRMTools(),'tool_choice'=>'auto','max_tokens'=>500,'temperature'=>0.2];
+        [$res,$code] = callGroq($payload);
         if ($res===false) aiJson(['success'=>false,'message'=>'Không thể kết nối Groq.']);
         $d = json_decode($res,true);
+        // Auto-retry once after 3s on rate limit
+        if ($code===429) {
+            sleep(3);
+            [$res,$code] = callGroq($payload);
+            $d = json_decode($res,true);
+        }
         if ($code!==200) aiJson(['success'=>false,'message'=>'Groq lỗi: '.($d['error']['message']??'HTTP '.$code)]);
         $msg = $d['choices'][0]['message'];
         $messages[] = $msg;
