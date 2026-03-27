@@ -146,7 +146,7 @@ switch ($action) {
         $pageTitle = 'Chi tiết Ticket #' . $ticket['id'];
         $canTransfer  = hasAnyRole(['Admin', 'Manager']);
         $canEdit      = hasAnyRole(['Admin', 'Manager']); // IT Helpdesk cannot edit details
-        $isClosed     = (int)$ticket['status_id'] === 3;
+        $isClosed     = $ticket['status_name'] === 'Đã đóng';
         $pageActions = '<div class="btn-group">
             <a href="tickets.php" class="btn btn-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Quay lại
@@ -192,7 +192,7 @@ switch ($action) {
         }
 
         // Ticket đã đóng → không cho chỉnh sửa
-        if ((int)$ticket['status_id'] === 3) {
+        if ($ticket['status_name'] === 'Đã đóng') {
             redirectWithMessage('tickets.php?action=view&id=' . $id, 'error', 'Ticket đã đóng, không thể chỉnh sửa.');
         }
 
@@ -477,13 +477,36 @@ include 'includes/header.php';
                                        maxlength="10" pattern="^0[3-9][0-9]{8}$">
                                 <div class="invalid-feedback">Số điện thoại không hợp lệ.</div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="customer_address" class="form-label">Địa chỉ <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="customer_address" name="customer_address" required
-                                       placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
-                                       value="<?php echo $action === 'edit' ? htmlspecialchars($ticket['customer_address'] ?? '') : (isset($_POST['customer_address']) ? htmlspecialchars($_POST['customer_address']) : ''); ?>">
-                                <div class="invalid-feedback">Vui lòng nhập địa chỉ khách hàng.</div>
+                        </div>
+
+                        <!-- Địa chỉ theo API tỉnh thành Việt Nam -->
+                        <div class="mb-3" id="address-section">
+                            <label class="form-label">Địa chỉ <span class="text-danger">*</span></label>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <select class="form-select" id="province_select">
+                                        <option value="">Chọn Tỉnh/Thành phố</option>
+                                    </select>
+                                    <div class="invalid-feedback" id="province_error">Vui lòng chọn Tỉnh/Thành phố.</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" id="district_select" disabled>
+                                        <option value="">Chọn Quận/Huyện</option>
+                                    </select>
+                                    <div class="invalid-feedback" id="district_error">Vui lòng chọn Quận/Huyện.</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" id="ward_select" disabled>
+                                        <option value="">Chọn Phường/Xã</option>
+                                    </select>
+                                    <div class="invalid-feedback" id="ward_error">Vui lòng chọn Phường/Xã.</div>
+                                </div>
                             </div>
+                            <input type="text" class="form-control" id="address_detail"
+                                   placeholder="Số nhà, tên đường..." required>
+                            <div class="invalid-feedback">Vui lòng nhập địa chỉ cụ thể (số nhà, tên đường).</div>
+                            <input type="hidden" name="customer_address" id="customer_address"
+                                   value="<?php echo $action === 'edit' ? htmlspecialchars($ticket['customer_address'] ?? '') : (isset($_POST['customer_address']) ? htmlspecialchars($_POST['customer_address']) : ''); ?>">
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -708,6 +731,7 @@ include 'includes/header.php';
                     <?php endif; ?>
 
                     <!-- Add Note Form -->
+                    <?php if (!$isClosed): ?>
                     <form method="POST" action="">
                         <div class="mb-3">
                             <label for="note" class="form-label">Thêm ghi chú mới</label>
@@ -717,6 +741,11 @@ include 'includes/header.php';
                             <i class="bi bi-plus-circle me-1"></i>Thêm ghi chú
                         </button>
                     </form>
+                    <?php else: ?>
+                    <div class="alert alert-secondary mb-0 small">
+                        <i class="bi bi-lock me-1"></i>Ticket đã đóng — không thể thêm ghi chú mới.
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -911,9 +940,15 @@ include 'includes/header.php';
                 <div class="card-body">
                     <?php if (hasAnyRole(['Admin', 'Manager'])): ?>
                         <div class="d-grid gap-2">
+                            <?php if (!$isClosed): ?>
                             <a href="tickets.php?action=edit&id=<?php echo $ticket['id']; ?>" class="btn btn-primary">
                                 <i class="bi bi-pencil me-1"></i>Chỉnh sửa Ticket
                             </a>
+                            <?php else: ?>
+                            <div class="text-center text-muted py-1 border rounded bg-light">
+                                <i class="bi bi-lock-fill me-1"></i>Ticket đã đóng — chỉ xem
+                            </div>
+                            <?php endif; ?>
                             <?php if (hasRole('Admin')): ?>
                             <button type="button" class="btn btn-outline-danger" onclick="deleteTicket(<?php echo $ticket['id']; ?>)">
                                 <i class="bi bi-trash me-1"></i>Xóa Ticket
@@ -1544,6 +1579,28 @@ function waiveBilling(billingId) {
         if (pri && !pri.value) setInvalid(pri, 'Vui lòng chọn mức ưu tiên.');
         else if (pri) setValid(pri);
 
+        // Address fields validation
+        const provSel = form.querySelector('#province_select');
+        const distSel = form.querySelector('#district_select');
+        const wrdSel  = form.querySelector('#ward_select');
+        const addrDet = form.querySelector('#address_detail');
+        if (provSel) {
+            if (!provSel.value) setInvalid(provSel, 'Vui lòng chọn Tỉnh/Thành phố.');
+            else setValid(provSel);
+        }
+        if (distSel) {
+            if (!distSel.value) setInvalid(distSel, 'Vui lòng chọn Quận/Huyện.');
+            else setValid(distSel);
+        }
+        if (wrdSel) {
+            if (!wrdSel.value) setInvalid(wrdSel, 'Vui lòng chọn Phường/Xã.');
+            else setValid(wrdSel);
+        }
+        if (addrDet) {
+            if (!addrDet.value.trim()) setInvalid(addrDet, 'Vui lòng nhập địa chỉ cụ thể (số nhà, tên đường).');
+            else setValid(addrDet);
+        }
+
         if (!valid) e.preventDefault();
     });
 })();
@@ -1606,6 +1663,161 @@ function createWarrantyClaim(originalId, customerName, customerEmail) {
         })
         .catch(() => alert('Lỗi kết nối.'));
 }
+
+// Vietnamese address API (provinces.open-api.vn)
+(function() {
+    var provinceSel = document.getElementById('province_select');
+    var districtSel = document.getElementById('district_select');
+    var wardSel     = document.getElementById('ward_select');
+    var addrDetail  = document.getElementById('address_detail');
+    var addrHidden  = document.getElementById('customer_address');
+    var ticketForm  = document.getElementById('ticketForm');
+    if (!provinceSel) return;
+
+    var API = 'https://provinces.open-api.vn/api';
+
+    // Store names for combining
+    var selectedProvince = '';
+    var selectedDistrict = '';
+    var selectedWard = '';
+
+    function setInvalid(sel, errorId, show) {
+        if (show) {
+            sel.classList.add('is-invalid');
+        } else {
+            sel.classList.remove('is-invalid');
+        }
+    }
+
+    function combineAddress() {
+        var parts = [];
+        if (addrDetail.value.trim()) parts.push(addrDetail.value.trim());
+        if (selectedWard)     parts.push(selectedWard);
+        if (selectedDistrict) parts.push(selectedDistrict);
+        if (selectedProvince) parts.push(selectedProvince);
+        addrHidden.value = parts.join(', ');
+    }
+
+    // Load provinces
+    fetch(API + '/?depth=1')
+        .then(r => r.json())
+        .then(function(provinces) {
+            provinces.forEach(function(p) {
+                var opt = new Option(p.name, p.code);
+                provinceSel.appendChild(opt);
+            });
+            // If editing, try to restore from stored address
+            var stored = addrHidden.value;
+            if (stored) {
+                restoreFromStored(stored, provinces);
+            }
+        })
+        .catch(function() {
+            provinceSel.innerHTML = '<option value="">Không tải được danh sách tỉnh</option>';
+        });
+
+    provinceSel.addEventListener('change', function() {
+        var code = this.value;
+        selectedProvince = this.options[this.selectedIndex].text;
+        selectedDistrict = '';
+        selectedWard = '';
+        districtSel.innerHTML = '<option value="">Chọn Quận/Huyện</option>';
+        districtSel.disabled = true;
+        wardSel.innerHTML = '<option value="">Chọn Phường/Xã</option>';
+        wardSel.disabled = true;
+        setInvalid(provinceSel, 'province_error', false);
+        if (!code) { selectedProvince = ''; return; }
+        fetch(API + '/p/' + code + '?depth=2')
+            .then(r => r.json())
+            .then(function(data) {
+                (data.districts || []).forEach(function(d) {
+                    districtSel.appendChild(new Option(d.name, d.code));
+                });
+                districtSel.disabled = false;
+            });
+    });
+
+    districtSel.addEventListener('change', function() {
+        var code = this.value;
+        selectedDistrict = this.options[this.selectedIndex].text;
+        selectedWard = '';
+        wardSel.innerHTML = '<option value="">Chọn Phường/Xã</option>';
+        wardSel.disabled = true;
+        setInvalid(districtSel, 'district_error', false);
+        if (!code) { selectedDistrict = ''; return; }
+        fetch(API + '/d/' + code + '?depth=2')
+            .then(r => r.json())
+            .then(function(data) {
+                (data.wards || []).forEach(function(w) {
+                    wardSel.appendChild(new Option(w.name, w.code));
+                });
+                wardSel.disabled = false;
+            });
+    });
+
+    wardSel.addEventListener('change', function() {
+        selectedWard = this.options[this.selectedIndex].text;
+        setInvalid(wardSel, 'ward_error', false);
+        combineAddress();
+    });
+
+    addrDetail.addEventListener('input', combineAddress);
+
+    // Combine address before form submit (runs after validation passes)
+    if (ticketForm) {
+        ticketForm.addEventListener('submit', function() {
+            combineAddress();
+        });
+    }
+
+    // Try to restore dropdowns from stored combined address "detail, ward, district, province"
+    function restoreFromStored(stored, provinces) {
+        var parts = stored.split(',').map(s => s.trim());
+        if (parts.length < 4) {
+            // Old format or plain text — just put in detail field
+            addrDetail.value = stored;
+            return;
+        }
+        var provinceStr  = parts[parts.length - 1];
+        var districtStr  = parts[parts.length - 2];
+        var wardStr      = parts[parts.length - 3];
+        var detailStr    = parts.slice(0, parts.length - 3).join(', ');
+
+        addrDetail.value = detailStr || stored;
+
+        // Match province
+        var pOpt = Array.from(provinceSel.options).find(o => o.text === provinceStr);
+        if (!pOpt) return;
+        provinceSel.value = pOpt.value;
+        selectedProvince = provinceStr;
+
+        fetch(API + '/p/' + pOpt.value + '?depth=2')
+            .then(r => r.json())
+            .then(function(data) {
+                (data.districts || []).forEach(function(d) {
+                    districtSel.appendChild(new Option(d.name, d.code));
+                });
+                districtSel.disabled = false;
+                var dOpt = Array.from(districtSel.options).find(o => o.text === districtStr);
+                if (!dOpt) return;
+                districtSel.value = dOpt.value;
+                selectedDistrict = districtStr;
+
+                fetch(API + '/d/' + dOpt.value + '?depth=2')
+                    .then(r => r.json())
+                    .then(function(wData) {
+                        (wData.wards || []).forEach(function(w) {
+                            wardSel.appendChild(new Option(w.name, w.code));
+                        });
+                        wardSel.disabled = false;
+                        var wOpt = Array.from(wardSel.options).find(o => o.text === wardStr);
+                        if (!wOpt) return;
+                        wardSel.value = wOpt.value;
+                        selectedWard = wardStr;
+                    });
+            });
+    }
+})();
 
 // Quick status change via AJAX
 document.querySelectorAll('.status-quick-select').forEach(function(sel) {

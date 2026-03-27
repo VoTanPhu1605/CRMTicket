@@ -14,13 +14,14 @@ class Ticket {
     }
 
     public function create($data) {
-        $stmt = $this->pdo->prepare("INSERT INTO tickets (title, description, customer_name, customer_email, customer_phone, category_id, priority_id, status_id, created_by, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $this->pdo->prepare("INSERT INTO tickets (title, description, customer_name, customer_email, customer_phone, customer_address, category_id, priority_id, status_id, created_by, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         return $stmt->execute([
             $data['title'],
             $data['description'] ?? null,
             $data['customer_name'],
             $data['customer_email'],
             $data['customer_phone'] ?? null,
+            $data['customer_address'] ?? null,
             $data['category_id'],
             $data['priority_id'],
             $data['status_id'],
@@ -127,6 +128,10 @@ class Ticket {
         if (isset($data['customer_phone'])) {
             $fields[] = "customer_phone = ?";
             $values[] = $data['customer_phone'];
+        }
+        if (isset($data['customer_address'])) {
+            $fields[] = "customer_address = ?";
+            $values[] = $data['customer_address'];
         }
         if (isset($data['category_id'])) {
             $fields[] = "category_id = ?";
