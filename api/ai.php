@@ -119,14 +119,14 @@ function executeCRMTool($pdo, $name, $args) {
                 JOIN statuses s   ON s.id=t.status_id
                 LEFT JOIN users ua ON ua.id=t.assigned_to
                 LEFT JOIN users uc ON uc.id=t.created_by
-                LEFT JOIN billing b ON b.ticket_id=t.id
+                LEFT JOIN ticket_billing b ON b.ticket_id=t.id
                 WHERE t.id=?");
             $s->execute([$id]);
             $ticket = $s->fetch(PDO::FETCH_ASSOC);
             if (!$ticket) return ['loi'=>"Ticket #$id không tồn tại"];
-            $n = $pdo->prepare("SELECT n.note, n.created_at, u.fullname as nguoi_viet FROM notes n JOIN users u ON u.id=n.created_by WHERE n.ticket_id=? ORDER BY n.created_at ASC");
+            $n = $pdo->prepare("SELECT n.note, n.created_at, u.fullname as nguoi_viet FROM ticket_notes n JOIN users u ON u.id=n.created_by WHERE n.ticket_id=? ORDER BY n.created_at ASC");
             $n->execute([$id]);
-            $a = $pdo->prepare("SELECT al.action_type, al.description, al.created_at, u.fullname as nguoi FROM activity_logs al LEFT JOIN users u ON u.id=al.user_id WHERE al.ticket_id=? ORDER BY al.created_at DESC LIMIT 8");
+            $a = $pdo->prepare("SELECT al.action_type, al.description, al.created_at, u.fullname as nguoi FROM ticket_activity_log al LEFT JOIN users u ON u.id=al.user_id WHERE al.ticket_id=? ORDER BY al.created_at DESC LIMIT 8");
             $a->execute([$id]);
             return ['ticket'=>$ticket,'ghi_chu'=>$n->fetchAll(PDO::FETCH_ASSOC),'lich_su'=>$a->fetchAll(PDO::FETCH_ASSOC)];
 
@@ -155,7 +155,7 @@ function executeCRMTool($pdo, $name, $args) {
 
         case 'get_customer_history':
             $q='%'.($args['query']??'').'%';
-            $s=$pdo->prepare("SELECT t.id,t.title,t.created_at,t.customer_name,t.customer_phone,t.customer_email,t.customer_address,s.name as trang_thai,p.name as uu_tien,c.name as danh_muc,t.warranty_end_date,b.price as gia,b.payment_status as tt,u.fullname as phan_cong FROM tickets t JOIN statuses s ON s.id=t.status_id JOIN priorities p ON p.id=t.priority_id JOIN categories c ON c.id=t.category_id LEFT JOIN users u ON u.id=t.assigned_to LEFT JOIN billing b ON b.ticket_id=t.id WHERE t.customer_name LIKE ? OR t.customer_email LIKE ? OR t.customer_phone LIKE ? ORDER BY t.created_at DESC LIMIT 20");
+            $s=$pdo->prepare("SELECT t.id,t.title,t.created_at,t.customer_name,t.customer_phone,t.customer_email,t.customer_address,s.name as trang_thai,p.name as uu_tien,c.name as danh_muc,t.warranty_end_date,b.price as gia,b.payment_status as tt,u.fullname as phan_cong FROM tickets t JOIN statuses s ON s.id=t.status_id JOIN priorities p ON p.id=t.priority_id JOIN categories c ON c.id=t.category_id LEFT JOIN users u ON u.id=t.assigned_to LEFT JOIN ticket_billing b ON b.ticket_id=t.id WHERE t.customer_name LIKE ? OR t.customer_email LIKE ? OR t.customer_phone LIKE ? ORDER BY t.created_at DESC LIMIT 20");
             $s->execute([$q,$q,$q]); $rows=$s->fetchAll(PDO::FETCH_ASSOC);
             return ['tickets'=>$rows,'so_luong'=>count($rows),'tong_chi_phi'=>array_sum(array_column($rows,'gia'))];
 
@@ -221,7 +221,7 @@ function executeCRMTool($pdo, $name, $args) {
 
         case 'find_similar_solutions':
             $q='%'.($args['query']??'').'%';
-            $s=$pdo->prepare("SELECT t.id,t.title,c.name as danh_muc,u.fullname as nguoi_xu_ly,ROUND(DATEDIFF(t.updated_at,t.created_at),0) as ngay_xu_ly,GROUP_CONCAT(n.note ORDER BY n.created_at SEPARATOR ' | ') as giai_phap FROM tickets t JOIN statuses s ON s.id=t.status_id AND s.name='Đã đóng' JOIN categories c ON c.id=t.category_id LEFT JOIN users u ON u.id=t.assigned_to LEFT JOIN notes n ON n.ticket_id=t.id WHERE t.title LIKE ? OR t.description LIKE ? GROUP BY t.id ORDER BY t.updated_at DESC LIMIT 5");
+            $s=$pdo->prepare("SELECT t.id,t.title,c.name as danh_muc,u.fullname as nguoi_xu_ly,ROUND(DATEDIFF(t.updated_at,t.created_at),0) as ngay_xu_ly,GROUP_CONCAT(n.note ORDER BY n.created_at SEPARATOR ' | ') as giai_phap FROM tickets t JOIN statuses s ON s.id=t.status_id AND s.name='Đã đóng' JOIN categories c ON c.id=t.category_id LEFT JOIN users u ON u.id=t.assigned_to LEFT JOIN ticket_notes n ON n.ticket_id=t.id WHERE t.title LIKE ? OR t.description LIKE ? GROUP BY t.id ORDER BY t.updated_at DESC LIMIT 5");
             $s->execute([$q,$q]); return $s->fetchAll(PDO::FETCH_ASSOC);
 
         case 'get_warranty_expiring':
@@ -230,9 +230,9 @@ function executeCRMTool($pdo, $name, $args) {
             $s->execute([$d]); return $s->fetchAll(PDO::FETCH_ASSOC);
 
         case 'get_revenue_summary':
-            $t=$pdo->query("SELECT SUM(CASE WHEN payment_status='paid' THEN price ELSE 0 END) as da_thu,SUM(CASE WHEN payment_status IN ('unpaid','pending') THEN price ELSE 0 END) as cho_thu,SUM(CASE WHEN payment_status='waived' THEN price ELSE 0 END) as mien_phi,COUNT(*) as tong_hoa_don FROM billing")->fetch(PDO::FETCH_ASSOC);
-            $c=$pdo->query("SELECT c.name as danh_muc,SUM(CASE WHEN b.payment_status='paid' THEN b.price ELSE 0 END) as doanh_thu FROM billing b JOIN tickets t ON t.id=b.ticket_id JOIN categories c ON c.id=t.category_id GROUP BY c.name ORDER BY doanh_thu DESC")->fetchAll(PDO::FETCH_ASSOC);
-            $m=$pdo->query("SELECT DATE_FORMAT(updated_at,'%Y-%m') as thang,SUM(price) as doanh_thu FROM billing WHERE payment_status='paid' GROUP BY thang ORDER BY thang DESC LIMIT 6")->fetchAll(PDO::FETCH_ASSOC);
+            $t=$pdo->query("SELECT SUM(CASE WHEN payment_status='paid' THEN price ELSE 0 END) as da_thu,SUM(CASE WHEN payment_status IN ('unpaid','pending') THEN price ELSE 0 END) as cho_thu,SUM(CASE WHEN payment_status='waived' THEN price ELSE 0 END) as mien_phi,COUNT(*) as tong_hoa_don FROM ticket_billing")->fetch(PDO::FETCH_ASSOC);
+            $c=$pdo->query("SELECT c.name as danh_muc,SUM(CASE WHEN b.payment_status='paid' THEN b.price ELSE 0 END) as doanh_thu FROM ticket_billing b JOIN tickets t ON t.id=b.ticket_id JOIN categories c ON c.id=t.category_id GROUP BY c.name ORDER BY doanh_thu DESC")->fetchAll(PDO::FETCH_ASSOC);
+            $m=$pdo->query("SELECT DATE_FORMAT(updated_at,'%Y-%m') as thang,SUM(price) as doanh_thu FROM ticket_billing WHERE payment_status='paid' GROUP BY thang ORDER BY thang DESC LIMIT 6")->fetchAll(PDO::FETCH_ASSOC);
             return ['tong_hop'=>$t,'danh_muc'=>$c,'theo_thang'=>$m];
     }
     return ['loi'=>'Tool không tồn tại: '.$name];
