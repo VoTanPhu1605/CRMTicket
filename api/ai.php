@@ -22,15 +22,19 @@ $content = trim($input['content'] ?? '');
 $context = $input['context'] ?? [];
 $history = $input['history'] ?? [];
 
-// ── Gemini HTTP (OpenAI-compatible endpoint) ──────────────────────────────────
+// ── OpenRouter HTTP (OpenAI-compatible) ───────────────────────────────────────
 function callGemini($payload) {
-    $url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-    $ch  = curl_init($url);
+    $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => json_encode($payload),
-        CURLOPT_HTTPHEADER     => ['Content-Type: application/json','Authorization: Bearer '.GEMINI_API_KEY],
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Authorization: Bearer '.GEMINI_API_KEY,
+            'HTTP-Referer: https://crmticket-production-cf66.up.railway.app/',
+            'X-Title: CRM Ticket AI',
+        ],
         CURLOPT_TIMEOUT        => 60,
         CURLOPT_SSL_VERIFYPEER => false,
     ]);

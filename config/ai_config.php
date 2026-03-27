@@ -1,7 +1,8 @@
 <?php
-// AI config — Gemini API (Google AI Studio free tier)
-$_ai_key = getenv('GEMINI_API_KEY') ?: 'AIzaSyBm4-uyvi6j1s-67qRfIakGYaLeHJUfY10';
+// AI config — OpenRouter (free models)
+$_ai_key = getenv('OPENROUTER_API_KEY') ?: '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';
 
-define('GEMINI_API_KEY', $_ai_key);
-define('GEMINI_MODEL', 'gemini-2.0-flash-lite'); // 30 RPM free tier
-define('AI_ENABLED', !empty(GEMINI_API_KEY));
+define('OPENROUTER_API_KEY', $_ai_key);
+define('GEMINI_API_KEY', $_ai_key);          // alias dùng trong ai.php
+define('GEMINI_MODEL', 'deepseek/deepseek-chat-v3-0324:free'); // free, rất mạnh
+define('AI_ENABLED', !empty($_ai_key));
